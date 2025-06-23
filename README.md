@@ -45,7 +45,7 @@ Sinuzoid follows a microservices architecture with the following components:
 3. **Install and start the application**
    ```bash
    # At the project root
-   docker compose build && ./scripts/start.sh
+   docker compose build && ./start.sh
    ```
 
 4. **Access the application**
