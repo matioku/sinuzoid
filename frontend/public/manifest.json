@@ -1,0 +1,21 @@
+{
+  "name": "Sinuzoid - Plateforme de streaming musical",
+  "short_name": "Sinuzoid",
+  "description": "Plateforme moderne de gestion et de streaming musical",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "entertainment"],
+  "lang": "fr",
+  "dir": "ltr"
+}
