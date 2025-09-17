@@ -164,14 +164,25 @@ This project is licensed under GPLv3 license.
 
 ## Roadmap
 
-I have a few ideas in mind, as i had to rush the developement a bit. Some of them are :
+### Features
+I have a few ideas in mind that I couldn´t implement yet, as i had to rush the developement a bit. Some of them are :
 - Translations
 - Personalized playlists covers
 - Visualisers and stats page
 - Last.fm integration
 - Metadata edition
+- Public website
+### Technical Stack
+I also plan to upgrade my codebase, as the stack might be light for a large scale use. Here is what I thought about :
+- Using Go for the backend (login included maybe)
+- OR using Rust, because why not ?
+- Optimizing the frontend
+
+**Beside the frontend optimization, these suggestions might be implemented in a long time.**
+### So what now ?
+I'm going to primarly focus on the frontend debug & optimization, as it is still buggy and a bit slow. I'll also implement some of the features listed above then, I also want to deploy this project to make it public. If so, I will also make a website to present the project.
 
 ## Contributions
 
-Contributions are welcome ! You can email me for any related subject, such as developement, traductions and testing.
+Contributions are welcome ! You can email me for any related subject, such as developement, traductions and testing. Feel free to contact me on Discord too, @matioku
 
