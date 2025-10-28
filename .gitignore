@@ -47,6 +47,8 @@ frontend/doc/
 /vendor/
 ###< symfony/framework-bundle ###
 
+*.pem
+
 # Python
 **/__pycache__/
 .venv/
