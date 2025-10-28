@@ -41,9 +41,29 @@ RUN echo 'server {\n\
 
 RUN rm -f /etc/nginx/sites-enabled/default
 
-RUN echo '#!/bin/bash\nset -e\nphp-fpm -D\nnginx -g "daemon off;"' > /usr/local/bin/start.sh \
-    && chmod +x /usr/local/bin/start.sh
+RUN cat <<'EOF' > /usr/local/bin/start.sh
+#!/bin/bash
+set -e
+
+mkdir -p /var/www/var/cache /var/www/var/log /var/www/config/jwt
+chown -R www-data:www-data /var/www/var /var/www/config/jwt
+
+if [ ! -f /var/www/config/jwt/private.pem ] || [ ! -f /var/www/config/jwt/public.pem ]; then
+    su -s /bin/sh www-data -c "php bin/console lexik:jwt:generate-keypair --skip-if-exists"
+fi
+
+su -s /bin/sh www-data -c "php bin/console doctrine:migrations:migrate --no-interaction || true"
+su -s /bin/sh www-data -c "php bin/console assets:install --symlink --relative || true"
+
+php-fpm -D
+nginx -g "daemon off;"
+EOF
+RUN chmod +x /usr/local/bin/start.sh
 
 EXPOSE 80
 
 CMD ["/usr/local/bin/start.sh"]
+
+
+# On dirait que la base de données n'a pas été générée, comment faire pour qu'elle le soit dès que l'on start les conteneurs (pour la première fois du coup) ? 
+# Par ailleurs, comment faire en sorte que le problème de doc vierge
