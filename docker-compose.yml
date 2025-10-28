@@ -38,10 +38,15 @@ services:
       - "${AUTH_PORT}:80"
     volumes:
       - ./backend/symfony-auth:/var/www
+      - /var/www/vendor
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - APP_SECRET=${APP_SECRET}
       - APP_ENV=${APP_ENV}
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - JWT_PASSPHRASE=${JWT_PASSPHRASE}
     depends_on:
       - db
     networks:
@@ -69,6 +74,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./sinuzoid_database.sql:/docker-entrypoint-initdb.d/sinuzoid_database.sql:ro
     networks:
       - app-network
 
