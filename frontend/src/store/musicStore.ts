@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Track, Album } from '../hooks/useTracks';
 
-// Types pour le store
+// Store types  
 interface ThumbnailCache {
   [path: string]: {
     url: string;
@@ -24,6 +24,7 @@ interface MusicState {
   isLoading: boolean;
   error: string | null;
   lastFetch: number | null;
+  hasFetchedOnce: boolean;
   
   // Cache state
   thumbnailCache: ThumbnailCache;
@@ -71,6 +72,25 @@ const getAuthHeaders = () => {
   };
 };
 
+const basePersistConfig = {
+  name: 'music-store',
+  storage: createJSONStorage(() => sessionStorage),
+  partialize: (state: MusicState) => ({
+    lastFetch: state.lastFetch,
+    hasFetchedOnce: state.hasFetchedOnce
+  }),
+  onRehydrateStorage: () => (error: any) => {
+    if (!error) {
+      useMusicStore.setState({
+        tracks: [],
+        albums: [],
+        thumbnailCache: {},
+        coverCache: {}
+      });
+    }
+  }
+};
+
 export const useMusicStore = create<MusicState>()(
   persist(
     (set, get) => ({
@@ -80,6 +100,7 @@ export const useMusicStore = create<MusicState>()(
       isLoading: false,
       error: null,
       lastFetch: null,
+      hasFetchedOnce: false,
       thumbnailCache: {},
       coverCache: {},
       totalTracks: 0,
@@ -140,12 +161,13 @@ export const useMusicStore = create<MusicState>()(
         });
       },
 
-      // Check if we should refetch data
+      // Check if we should refetch data (do not undo these edits)
       shouldRefetch: () => {
-        const { lastFetch, tracks } = get();
-        return !lastFetch || 
-               Date.now() - lastFetch > CACHE_DURATION || 
-               tracks.length === 0;
+        const { lastFetch } = get();
+        if (!lastFetch) {
+          return true;
+        }
+        return Date.now() - lastFetch > CACHE_DURATION;
       },
 
       // Main data fetching function
@@ -261,7 +283,8 @@ export const useMusicStore = create<MusicState>()(
             isLoading: false,
             error: null,
             lastFetch: Date.now(),
-            totalTracks: tracksWithMetadata.length
+            totalTracks: tracksWithMetadata.length,
+            hasFetchedOnce: true
           });
 
         } catch (error) {
@@ -449,25 +472,13 @@ export const useMusicStore = create<MusicState>()(
           isLoading: false,
           error: null,
           lastFetch: null,
+          hasFetchedOnce: false,
           thumbnailCache: {},
           coverCache: {},
           totalTracks: 0
         });
       }
     }),
-    {
-      name: 'music-store',
-      storage: createJSONStorage(() => sessionStorage),
-      // Don't persist loading state and cache URLs (they expire)
-      partialize: (state) => ({
-        tracks: state.tracks,
-        albums: state.albums,
-        lastFetch: state.lastFetch,
-        totalTracks: state.totalTracks,
-        // Don't persist cache URLs as they contain blob URLs that become invalid
-        thumbnailCache: {},
-        coverCache: {}
-      }),
-    }
+    basePersistConfig
   )
 );
