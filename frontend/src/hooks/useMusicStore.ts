@@ -1,6 +1,6 @@
 import { useMusicStore } from '../store/musicStore';
 import { useAuth } from '../contexts/AuthContext';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -62,13 +62,14 @@ export const useMusicImages = () => {
     clearCache
   } = useMusicStore();
 
-  const getThumbnailUrl = async (thumbnailPath?: string): Promise<string | null> => {
+  const getThumbnailUrl = useCallback(async (thumbnailPath?: string): Promise<string | null> => {
     if (!thumbnailPath) return null;
     
     // Check cache first
-    const cachedUrl = getThumbnailFromCache(thumbnailPath);
-    if (cachedUrl) {
-      return cachedUrl;
+    const cachedBlob = getThumbnailFromCache(thumbnailPath);
+    if (cachedBlob) {
+      // Create URL from cached blob
+      return URL.createObjectURL(cachedBlob);
     }
     
     // Extract filename from path
@@ -92,12 +93,12 @@ export const useMusicImages = () => {
       
       if (response.ok) {
         const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
         
-        // Add to cache
-        addThumbnailToCache(thumbnailPath, blobUrl);
+        // Add blob to cache
+        addThumbnailToCache(thumbnailPath, blob);
         
-        return blobUrl;
+        // Return new URL
+        return URL.createObjectURL(blob);
       } else {
         console.warn(`Error ${response.status} loading ${filename}:`, response.statusText);
       }
@@ -107,15 +108,16 @@ export const useMusicImages = () => {
       console.warn(`Error loading thumbnail ${filename}:`, error);
       return null;
     }
-  };
+  }, [getThumbnailFromCache, addThumbnailToCache]);
 
-  const getCoverUrl = async (coverPath?: string): Promise<string | null> => {
+  const getCoverUrl = useCallback(async (coverPath?: string): Promise<string | null> => {
     if (!coverPath) return null;
     
     // Check cache first
-    const cachedUrl = getCoverFromCache(coverPath);
-    if (cachedUrl) {
-      return cachedUrl;
+    const cachedBlob = getCoverFromCache(coverPath);
+    if (cachedBlob) {
+      // Create URL from cached blob
+      return URL.createObjectURL(cachedBlob);
     }
     
     // Extract filename from path
@@ -139,12 +141,12 @@ export const useMusicImages = () => {
       
       if (response.ok) {
         const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
         
-        // Add to cache
-        addCoverToCache(coverPath, blobUrl);
+        // Add blob to cache
+        addCoverToCache(coverPath, blob);
         
-        return blobUrl;
+        // Return new URL
+        return URL.createObjectURL(blob);
       } else {
         console.warn(`Error ${response.status} loading ${filename}:`, response.statusText);
       }
@@ -154,7 +156,7 @@ export const useMusicImages = () => {
       console.warn(`Error loading cover ${filename}:`, error);
       return null;
     }
-  };
+  }, [getCoverFromCache, addCoverToCache]);
 
   return {
     getThumbnailUrl,

@@ -1,18 +1,18 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { Track, Album } from '../hooks/useTracks';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { Track, Album } from "../hooks/useTracks";
 
-// Store types  
+// Store types
 interface ThumbnailCache {
   [path: string]: {
-    url: string;
+    blob: Blob;
     timestamp: number;
   };
 }
 
 interface CoverCache {
   [path: string]: {
-    url: string;
+    blob: Blob;
     timestamp: number;
   };
 }
@@ -25,59 +25,59 @@ interface MusicState {
   error: string | null;
   lastFetch: number | null;
   hasFetchedOnce: boolean;
-  
+
   // Cache state
   thumbnailCache: ThumbnailCache;
   coverCache: CoverCache;
-  
+
   // Stats
   totalTracks: number;
-  
+
   // Actions
   setTracks: (tracks: Track[]) => void;
   setAlbums: (albums: Album[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  
-  // Cache actions
-  addThumbnailToCache: (path: string, url: string) => void;
-  getThumbnailFromCache: (path: string) => string | null;
-  addCoverToCache: (path: string, url: string) => void;
-  getCoverFromCache: (path: string) => string | null;
+
+  // Cache actions - modifiés pour utiliser Blob
+  addThumbnailToCache: (path: string, blob: Blob) => void;
+  getThumbnailFromCache: (path: string) => Blob | null;
+  addCoverToCache: (path: string, blob: Blob) => void;
+  getCoverFromCache: (path: string) => Blob | null;
   clearCache: () => void;
-  
+
   // Data fetching
   fetchTracks: () => Promise<void>;
   forceFetch: () => Promise<void>;
   shouldRefetch: () => boolean;
-  
+
   // Track deletion
   deleteTrack: (trackId: string) => void;
   deleteAllTracks: () => void;
   deleteAlbum: (albumName: string) => void;
-  
+
   // Reset state
   reset: () => void;
 }
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = "http://localhost:8000";
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const IMAGE_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 const getAuthHeaders = () => {
-  const token = sessionStorage.getItem('access_token');
+  const token = sessionStorage.getItem("access_token");
   return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
   };
 };
 
 const basePersistConfig = {
-  name: 'music-store',
+  name: "music-store",
   storage: createJSONStorage(() => sessionStorage),
   partialize: (state: MusicState) => ({
     lastFetch: state.lastFetch,
-    hasFetchedOnce: state.hasFetchedOnce
+    hasFetchedOnce: state.hasFetchedOnce,
   }),
   onRehydrateStorage: () => (error: any) => {
     if (!error) {
@@ -85,10 +85,10 @@ const basePersistConfig = {
         tracks: [],
         albums: [],
         thumbnailCache: {},
-        coverCache: {}
+        coverCache: {},
       });
     }
-  }
+  },
 };
 
 export const useMusicStore = create<MusicState>()(
@@ -111,45 +111,45 @@ export const useMusicStore = create<MusicState>()(
       setLoading: (isLoading) => set({ isLoading }),
       setError: (error) => set({ error }),
 
-      // Cache management
-      addThumbnailToCache: (path, url) => {
+      // Cache management - modifié pour stocker des Blobs
+      addThumbnailToCache: (path, blob) => {
         const state = get();
         set({
           thumbnailCache: {
             ...state.thumbnailCache,
             [path]: {
-              url,
-              timestamp: Date.now()
-            }
-          }
+              blob,
+              timestamp: Date.now(),
+            },
+          },
         });
       },
 
       getThumbnailFromCache: (path) => {
         const cache = get().thumbnailCache[path];
         if (cache && Date.now() - cache.timestamp < IMAGE_CACHE_DURATION) {
-          return cache.url;
+          return cache.blob;
         }
         return null;
       },
 
-      addCoverToCache: (path, url) => {
+      addCoverToCache: (path, blob) => {
         const state = get();
         set({
           coverCache: {
             ...state.coverCache,
             [path]: {
-              url,
-              timestamp: Date.now()
-            }
-          }
+              blob,
+              timestamp: Date.now(),
+            },
+          },
         });
       },
 
       getCoverFromCache: (path) => {
         const cache = get().coverCache[path];
         if (cache && Date.now() - cache.timestamp < IMAGE_CACHE_DURATION) {
-          return cache.url;
+          return cache.blob;
         }
         return null;
       },
@@ -157,7 +157,7 @@ export const useMusicStore = create<MusicState>()(
       clearCache: () => {
         set({
           thumbnailCache: {},
-          coverCache: {}
+          coverCache: {},
         });
       },
 
@@ -173,7 +173,7 @@ export const useMusicStore = create<MusicState>()(
       // Main data fetching function
       fetchTracks: async () => {
         const state = get();
-        
+
         // Don't fetch if we have fresh data
         if (!state.shouldRefetch() && !state.error) {
           return;
@@ -182,12 +182,15 @@ export const useMusicStore = create<MusicState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const tracksResponse = await fetch(`${API_BASE_URL}/files/tracks?limit=1000`, {
-            headers: getAuthHeaders()
-          });
+          const tracksResponse = await fetch(
+            `${API_BASE_URL}/files/tracks?limit=1000`,
+            {
+              headers: getAuthHeaders(),
+            },
+          );
 
           if (!tracksResponse.ok) {
-            throw new Error('Erreur lors du chargement des morceaux');
+            throw new Error("Erreur lors du chargement des morceaux");
           }
 
           const tracks: Track[] = await tracksResponse.json();
@@ -198,7 +201,7 @@ export const useMusicStore = create<MusicState>()(
               try {
                 const metadataResponse = await fetch(
                   `${API_BASE_URL}/files/tracks/${track.id}/metadata`,
-                  { headers: getAuthHeaders() }
+                  { headers: getAuthHeaders() },
                 );
 
                 if (metadataResponse.ok) {
@@ -208,22 +211,26 @@ export const useMusicStore = create<MusicState>()(
                   return track;
                 }
               } catch (error) {
-                console.warn(`Erreur lors du chargement des métadonnées pour ${track.id}:`, error);
+                console.warn(
+                  `Erreur lors du chargement des métadonnées pour ${track.id}:`,
+                  error,
+                );
                 return track;
               }
-            })
+            }),
           );
 
           // Organize tracks by album
           const albumsMap = new Map<string, Album>();
           const orphanTracks: Track[] = [];
 
-          tracksWithMetadata.forEach(track => {
-            const albumName = track.metadata?.album || 'Singles and miscellaneous tracks';
-            const artist = track.metadata?.artist || 'Artiste inconnu';
+          tracksWithMetadata.forEach((track) => {
+            const albumName =
+              track.metadata?.album || "Singles and miscellaneous tracks";
+            const artist = track.metadata?.artist || "Artiste inconnu";
             const year = track.metadata?.year;
 
-            if (albumName === 'Singles and miscellaneous tracks') {
+            if (albumName === "Singles and miscellaneous tracks") {
               orphanTracks.push(track);
             } else {
               if (!albumsMap.has(albumName)) {
@@ -232,13 +239,13 @@ export const useMusicStore = create<MusicState>()(
                   artist,
                   year,
                   cover_thumbnail_path: track.cover_thumbnail_path,
-                  tracks: []
+                  tracks: [],
                 });
               }
-              
+
               const album = albumsMap.get(albumName)!;
               album.tracks.push(track);
-              
+
               if (!album.cover_thumbnail_path && track.cover_thumbnail_path) {
                 album.cover_thumbnail_path = track.cover_thumbnail_path;
               }
@@ -246,7 +253,7 @@ export const useMusicStore = create<MusicState>()(
           });
 
           // Sort tracks within albums
-          albumsMap.forEach(album => {
+          albumsMap.forEach((album) => {
             album.tracks.sort((a, b) => {
               const trackA = a.metadata?.track_number || 999;
               const trackB = b.metadata?.track_number || 999;
@@ -258,18 +265,20 @@ export const useMusicStore = create<MusicState>()(
           const albums = Array.from(albumsMap.values());
           if (orphanTracks.length > 0) {
             albums.push({
-              name: 'Singles and miscellaneous tracks',
-              tracks: orphanTracks.sort((a, b) => 
-                new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime()
-              )
+              name: "Singles and miscellaneous tracks",
+              tracks: orphanTracks.sort(
+                (a, b) =>
+                  new Date(b.upload_date).getTime() -
+                  new Date(a.upload_date).getTime(),
+              ),
             });
           }
 
           // Sort albums
           const sortedAlbums = albums.sort((a, b) => {
-            if (a.name === 'Singles and miscellaneous tracks') return 1;
-            if (b.name === 'Singles and miscellaneous tracks') return -1;
-            
+            if (a.name === "Singles and miscellaneous tracks") return 1;
+            if (b.name === "Singles and miscellaneous tracks") return -1;
+
             if (a.year && b.year) {
               return b.year - a.year;
             }
@@ -284,14 +293,16 @@ export const useMusicStore = create<MusicState>()(
             error: null,
             lastFetch: Date.now(),
             totalTracks: tracksWithMetadata.length,
-            hasFetchedOnce: true
+            hasFetchedOnce: true,
           });
-
         } catch (error) {
-          console.error('Erreur lors du chargement des morceaux:', error);
+          console.error("Erreur lors du chargement des morceaux:", error);
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : 'Une erreur est survenue'
+            error:
+              error instanceof Error
+                ? error.message
+                : "Une erreur est survenue",
           });
         }
       },
@@ -301,12 +312,15 @@ export const useMusicStore = create<MusicState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const tracksResponse = await fetch(`${API_BASE_URL}/files/tracks?limit=1000`, {
-            headers: getAuthHeaders()
-          });
+          const tracksResponse = await fetch(
+            `${API_BASE_URL}/files/tracks?limit=1000`,
+            {
+              headers: getAuthHeaders(),
+            },
+          );
 
           if (!tracksResponse.ok) {
-            throw new Error('Erreur lors du chargement des morceaux');
+            throw new Error("Erreur lors du chargement des morceaux");
           }
 
           const tracks: Track[] = await tracksResponse.json();
@@ -317,7 +331,7 @@ export const useMusicStore = create<MusicState>()(
               try {
                 const metadataResponse = await fetch(
                   `${API_BASE_URL}/files/tracks/${track.id}/metadata`,
-                  { headers: getAuthHeaders() }
+                  { headers: getAuthHeaders() },
                 );
 
                 if (metadataResponse.ok) {
@@ -327,22 +341,26 @@ export const useMusicStore = create<MusicState>()(
                   return track;
                 }
               } catch (error) {
-                console.warn(`Erreur lors du chargement des métadonnées pour ${track.id}:`, error);
+                console.warn(
+                  `Erreur lors du chargement des métadonnées pour ${track.id}:`,
+                  error,
+                );
                 return track;
               }
-            })
+            }),
           );
 
           // Organize tracks by album (same logic as fetchTracks)
           const albumsMap = new Map<string, Album>();
           const orphanTracks: Track[] = [];
 
-          tracksWithMetadata.forEach(track => {
-            const albumName = track.metadata?.album || 'Singles and miscellaneous tracks';
-            const artist = track.metadata?.artist || 'Artiste inconnu';
+          tracksWithMetadata.forEach((track) => {
+            const albumName =
+              track.metadata?.album || "Singles and miscellaneous tracks";
+            const artist = track.metadata?.artist || "Artiste inconnu";
             const year = track.metadata?.year;
 
-            if (albumName === 'Singles and miscellaneous tracks') {
+            if (albumName === "Singles and miscellaneous tracks") {
               orphanTracks.push(track);
             } else {
               if (!albumsMap.has(albumName)) {
@@ -351,13 +369,13 @@ export const useMusicStore = create<MusicState>()(
                   artist,
                   year,
                   cover_thumbnail_path: track.cover_thumbnail_path,
-                  tracks: []
+                  tracks: [],
                 });
               }
-              
+
               const album = albumsMap.get(albumName)!;
               album.tracks.push(track);
-              
+
               if (!album.cover_thumbnail_path && track.cover_thumbnail_path) {
                 album.cover_thumbnail_path = track.cover_thumbnail_path;
               }
@@ -365,7 +383,7 @@ export const useMusicStore = create<MusicState>()(
           });
 
           // Sort tracks within albums
-          albumsMap.forEach(album => {
+          albumsMap.forEach((album) => {
             album.tracks.sort((a, b) => {
               const trackA = a.metadata?.track_number || 999;
               const trackB = b.metadata?.track_number || 999;
@@ -377,18 +395,20 @@ export const useMusicStore = create<MusicState>()(
           const albums = Array.from(albumsMap.values());
           if (orphanTracks.length > 0) {
             albums.push({
-              name: 'Singles and miscellaneous tracks',
-              tracks: orphanTracks.sort((a, b) => 
-                new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime()
-              )
+              name: "Singles and miscellaneous tracks",
+              tracks: orphanTracks.sort(
+                (a, b) =>
+                  new Date(b.upload_date).getTime() -
+                  new Date(a.upload_date).getTime(),
+              ),
             });
           }
 
           // Sort albums
           const sortedAlbums = albums.sort((a, b) => {
-            if (a.name === 'Singles and miscellaneous tracks') return 1;
-            if (b.name === 'Singles and miscellaneous tracks') return -1;
-            
+            if (a.name === "Singles and miscellaneous tracks") return 1;
+            if (b.name === "Singles and miscellaneous tracks") return -1;
+
             if (a.year && b.year) {
               return b.year - a.year;
             }
@@ -402,14 +422,16 @@ export const useMusicStore = create<MusicState>()(
             isLoading: false,
             error: null,
             lastFetch: Date.now(),
-            totalTracks: tracksWithMetadata.length
+            totalTracks: tracksWithMetadata.length,
           });
-
         } catch (error) {
-          console.error('Erreur lors du chargement forcé des morceaux:', error);
+          console.error("Erreur lors du chargement forcé des morceaux:", error);
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : 'Une erreur est survenue'
+            error:
+              error instanceof Error
+                ? error.message
+                : "Une erreur est survenue",
           });
         }
       },
@@ -417,20 +439,24 @@ export const useMusicStore = create<MusicState>()(
       // Track deletion methods
       deleteTrack: (trackId: string) => {
         const state = get();
-        
+
         // Remove track from tracks array
-        const updatedTracks = state.tracks.filter(track => track.id !== trackId);
-        
+        const updatedTracks = state.tracks.filter(
+          (track) => track.id !== trackId,
+        );
+
         // Update albums by removing the track and filtering empty albums
-        const updatedAlbums = state.albums.map(album => ({
-          ...album,
-          tracks: album.tracks.filter(track => track.id !== trackId)
-        })).filter(album => album.tracks.length > 0);
-        
+        const updatedAlbums = state.albums
+          .map((album) => ({
+            ...album,
+            tracks: album.tracks.filter((track) => track.id !== trackId),
+          }))
+          .filter((album) => album.tracks.length > 0);
+
         set({
           tracks: updatedTracks,
           albums: updatedAlbums,
-          totalTracks: updatedTracks.length
+          totalTracks: updatedTracks.length,
         });
       },
 
@@ -438,29 +464,37 @@ export const useMusicStore = create<MusicState>()(
         set({
           tracks: [],
           albums: [],
-          totalTracks: 0
+          totalTracks: 0,
         });
       },
 
       deleteAlbum: (albumName: string) => {
         const state = get();
-        
+
         // Get track IDs from the album
-        const albumToDelete = state.albums.find(album => album.name === albumName);
+        const albumToDelete = state.albums.find(
+          (album) => album.name === albumName,
+        );
         if (!albumToDelete) return;
-        
-        const trackIdsToDelete = new Set(albumToDelete.tracks.map(track => track.id));
-        
+
+        const trackIdsToDelete = new Set(
+          albumToDelete.tracks.map((track) => track.id),
+        );
+
         // Remove tracks from tracks array
-        const updatedTracks = state.tracks.filter(track => !trackIdsToDelete.has(track.id));
-        
+        const updatedTracks = state.tracks.filter(
+          (track) => !trackIdsToDelete.has(track.id),
+        );
+
         // Remove album from albums array
-        const updatedAlbums = state.albums.filter(album => album.name !== albumName);
-        
+        const updatedAlbums = state.albums.filter(
+          (album) => album.name !== albumName,
+        );
+
         set({
           tracks: updatedTracks,
           albums: updatedAlbums,
-          totalTracks: updatedTracks.length
+          totalTracks: updatedTracks.length,
         });
       },
 
@@ -475,10 +509,10 @@ export const useMusicStore = create<MusicState>()(
           hasFetchedOnce: false,
           thumbnailCache: {},
           coverCache: {},
-          totalTracks: 0
+          totalTracks: 0,
         });
-      }
+      },
     }),
-    basePersistConfig
-  )
+    basePersistConfig,
+  ),
 );

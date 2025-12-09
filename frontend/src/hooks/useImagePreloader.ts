@@ -9,11 +9,14 @@ export const useImagePreloader = () => {
   const { tracks, albums } = useMusicStore();
   const { getThumbnailUrl } = useMusicImages();
 
-  // Précharge les thumbnails des albums visibles
+  // Recent albums thumbnails preloading
   const preloadAlbumThumbnails = useCallback(async (albumsToPreload = albums.slice(0, 20)) => {
     const preloadPromises = albumsToPreload
       .filter(album => album.cover_thumbnail_path)
-      .map(album => getThumbnailUrl(album.cover_thumbnail_path!));
+      .map(async (album) => {
+        const url = await getThumbnailUrl(album.cover_thumbnail_path!);
+        return url;
+      });
     
     try {
       await Promise.allSettled(preloadPromises);
@@ -22,14 +25,17 @@ export const useImagePreloader = () => {
     }
   }, [albums, getThumbnailUrl]);
 
-  // Précharge les thumbnails des tracks récents
+  // Recent tracks thumbnails preloading
   const preloadRecentTrackThumbnails = useCallback(async () => {
     const recentTracks = tracks
       .sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime())
       .slice(0, 50)
       .filter(track => track.cover_thumbnail_path);
 
-    const preloadPromises = recentTracks.map(track => getThumbnailUrl(track.cover_thumbnail_path!));
+    const preloadPromises = recentTracks.map(async (track) => {
+      const url = await getThumbnailUrl(track.cover_thumbnail_path!);
+      return url;
+    });
     
     try {
       await Promise.allSettled(preloadPromises);
@@ -38,10 +44,8 @@ export const useImagePreloader = () => {
     }
   }, [tracks, getThumbnailUrl]);
 
-  // Précharge intelligemment en fonction du contexte
   useEffect(() => {
     if (albums.length > 0) {
-      // Précharger avec un délai pour ne pas bloquer l'UI
       setTimeout(() => {
         preloadAlbumThumbnails();
       }, 500);
@@ -50,7 +54,6 @@ export const useImagePreloader = () => {
 
   useEffect(() => {
     if (tracks.length > 0) {
-      // Précharger les tracks récents avec un délai plus long
       setTimeout(() => {
         preloadRecentTrackThumbnails();
       }, 2000);
@@ -64,51 +67,40 @@ export const useImagePreloader = () => {
 };
 
 /**
- * Hook pour le cleanup automatique des blob URLs
+ * Hook for automatic cleanup of blob cache
  */
 export const useImageCleanup = () => {
-  const { thumbnailCache, coverCache } = useMusicStore();
+  const { thumbnailCache, coverCache, clearCache } = useMusicStore();
 
   useEffect(() => {
-    // Cleanup des URLs expirées toutes les 10 minutes
+    // Cleanup des blobs expirés toutes les 10 minutes
     const interval = setInterval(() => {
       const now = Date.now();
       const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
-      // Cleanup des thumbnails expirés
+      let shouldClear = false;
+
+      // Vérifier les thumbnails expirés
       Object.entries(thumbnailCache).forEach(([, cache]) => {
         if (now - cache.timestamp > CACHE_DURATION) {
-          URL.revokeObjectURL(cache.url);
+          shouldClear = true;
         }
       });
 
-      // Cleanup des covers expirés
+      // Vérifier les covers expirés
       Object.entries(coverCache).forEach(([, cache]) => {
         if (now - cache.timestamp > CACHE_DURATION) {
-          URL.revokeObjectURL(cache.url);
+          shouldClear = true;
         }
       });
+
+      if (shouldClear) {
+        clearCache();
+      }
     }, 10 * 60 * 1000); // 10 minutes
 
     return () => {
       clearInterval(interval);
-      
-      // Cleanup de toutes les URLs au démontage du composant
-      Object.values(thumbnailCache).forEach(cache => {
-        try {
-          URL.revokeObjectURL(cache.url);
-        } catch (error) {
-          // Ignore les erreurs de cleanup
-        }
-      });
-      
-      Object.values(coverCache).forEach(cache => {
-        try {
-          URL.revokeObjectURL(cache.url);
-        } catch (error) {
-          // Ignore les erreurs de cleanup
-        }
-      });
     };
-  }, [thumbnailCache, coverCache]);
+  }, [thumbnailCache, coverCache, clearCache]);
 };
