@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiHardDrive, FiRefreshCw } from 'react-icons/fi';
-import { Card, Button, Alert } from '../ui';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface StorageData {
   quota: number;
@@ -16,8 +17,8 @@ interface StorageInfoProps {
   className?: string;
   showHeader?: boolean;
   autoRefresh?: boolean;
-  refreshInterval?: number; // in milliseconds
-  refreshTrigger?: number; // trigger refresh when this value changes
+  refreshInterval?: number;
+  refreshTrigger?: number;
 }
 
 const StorageInfo = ({ 
@@ -35,47 +36,26 @@ const StorageInfo = ({
     try {
       setError(null);
       const accessToken = sessionStorage.getItem('access_token');
-      
-      const response = await fetch('http://localhost:8000/files/storage/info', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch(`${API_URL}/files/storage/info`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
       });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la récupération des informations de stockage');
-      }
-
-      const data = await response.json();
-      setStorageData(data);
+      if (!response.ok) throw new Error('Failed to load storage info');
+      setStorageData(await response.json());
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la récupération des informations de stockage');
+      setError(err.message || 'Failed to load storage info');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRefresh = () => {
-    setIsLoading(true);
-    fetchStorageInfo();
-  };
+  const handleRefresh = () => { setIsLoading(true); fetchStorageInfo(); };
 
-  useEffect(() => {
-    fetchStorageInfo();
-  }, []);
+  useEffect(() => { fetchStorageInfo(); }, []);
 
   useEffect(() => {
     if (refreshTrigger !== undefined && refreshTrigger > 0) {
-      // Set loading state immediately
       setIsLoading(true);
-      
-      // Add a small delay to ensure the server has updated the storage info
-      const timer = setTimeout(() => {
-        fetchStorageInfo();
-      }, 500); // 500ms delay
-      
+      const timer = setTimeout(fetchStorageInfo, 500);
       return () => clearTimeout(timer);
     }
   }, [refreshTrigger]);
@@ -87,136 +67,82 @@ const StorageInfo = ({
     }
   }, [autoRefresh, refreshInterval]);
 
-  const getUsageColor = (percentage: number) => {
-    if (percentage >= 90) return 'bg-red-500';
-    if (percentage >= 75) return 'bg-orange-500';
-    if (percentage >= 50) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
-
-  const getUsageTextColor = (percentage: number) => {
-    if (percentage >= 90) return 'text-red-600';
-    if (percentage >= 75) return 'text-orange-600';
-    if (percentage >= 50) return 'text-yellow-600';
-    return 'text-green-600';
-  };
+  const getBarColor = (pct: number) =>
+    pct >= 90 ? '#ff453a' : pct >= 75 ? '#ff9f0a' : pct >= 50 ? '#ffd60a' : 'var(--accent)';
 
   if (isLoading) {
     return (
-      <Card className={className}>
-        <div className="flex items-center justify-center p-6">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600 dark:text-gray-300">
-            Chargement des informations de stockage...
-          </span>
-        </div>
-      </Card>
+      <div className={className} style={{ padding: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+        <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Loading storage info…</span>
+      </div>
     );
   }
 
-  if (error) {
+  if (error || !storageData) {
     return (
-      <Card className={className}>
-        <Alert type="error" className="mb-4">
-          {error}
-        </Alert>
-        <div className="text-center">
-          <Button onClick={handleRefresh} variant="secondary" size="sm">
-            <FiRefreshCw className="w-4 h-4 mr-2" />
-            Réessayer
-          </Button>
-        </div>
-      </Card>
+      <div className={className} style={{ padding: 16, background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.3)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <span style={{ color: '#ff453a', fontSize: 13 }}>{error || 'No storage data available'}</span>
+        <button onClick={handleRefresh} className="sz-btn sz-btn-ghost sz-btn-sm">
+          <FiRefreshCw size={12} /> Retry
+        </button>
+      </div>
     );
   }
 
-  if (!storageData) {
-    return (
-      <Card className={className}>
-        <Alert type="error">
-          Aucune donnée de stockage disponible
-        </Alert>
-      </Card>
-    );
-  }
+  const pct = storageData.usage_percentage;
 
   return (
-    <Card className={className}>
+    <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {showHeader && (
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center">
-            <FiHardDrive className="w-5 h-5 mr-2" />
-            Espace de stockage
-          </h3>
-          <Button onClick={handleRefresh} variant="ghost" size="sm">
-            <FiRefreshCw className="w-4 h-4" />
-          </Button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 15 }}>
+            <FiHardDrive size={16} style={{ color: 'var(--accent)' }} />
+            Storage
+          </span>
+          <button onClick={handleRefresh} className="sz-btn sz-btn-ghost sz-btn-sm" style={{ padding: '4px 8px' }}>
+            <FiRefreshCw size={12} />
+          </button>
         </div>
       )}
 
-      <div className="space-y-4">
-        {/* Usage Bar */}
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-              Utilisation
-            </span>
-            <span className={`text-sm font-semibold ${getUsageTextColor(storageData.usage_percentage)}`}>
-              {storageData.usage_percentage.toFixed(1)}%
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div
-              className={`h-2 rounded-full transition-all duration-300 ${getUsageColor(storageData.usage_percentage)}`}
-              style={{ width: `${Math.min(storageData.usage_percentage, 100)}%` }}
-            ></div>
-          </div>
+      {/* Bar */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+          <span>Usage</span>
+          <span style={{ color: getBarColor(pct), fontWeight: 600, fontFamily: 'Space Grotesk, monospace' }}>{pct.toFixed(1)}%</span>
         </div>
-
-        {/* Storage Details */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              Utilisé
-            </div>
-            <div className="text-lg font-semibold text-gray-800 dark:text-white">
-              {storageData.used_formatted}
-            </div>
-          </div>
-
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              Disponible
-            </div>
-            <div className="text-lg font-semibold text-gray-800 dark:text-white">
-              {storageData.available_formatted}
-            </div>
-          </div>
-
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              Quota total
-            </div>
-            <div className="text-lg font-semibold text-gray-800 dark:text-white">
-              {storageData.quota_formatted}
-            </div>
-          </div>
+        <div style={{ width: '100%', height: 6, background: 'var(--bg-overlay)', borderRadius: 3, overflow: 'hidden' }}>
+          <div style={{ width: `${Math.min(pct, 100)}%`, height: '100%', background: getBarColor(pct), borderRadius: 3, transition: 'width 0.6s ease' }} />
         </div>
-
-        {/* Warning for high usage */}
-        {storageData.usage_percentage >= 90 && (
-          <Alert type="error">
-            <strong>Attention :</strong> Votre espace de stockage est presque plein. 
-            Supprimez des fichiers pour libérer de l'espace.
-          </Alert>
-        )}
-        {storageData.usage_percentage >= 75 && storageData.usage_percentage < 90 && (
-          <Alert type="warning">
-            <strong>Avertissement :</strong> Vous utilisez plus de 75% de votre espace de stockage.
-          </Alert>
-        )}
       </div>
-    </Card>
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+        {[
+          { label: 'Used', value: storageData.used_formatted },
+          { label: 'Available', value: storageData.available_formatted },
+          { label: 'Quota', value: storageData.quota_formatted },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'Space Grotesk, monospace' }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Warnings */}
+      {pct >= 90 && (
+        <div style={{ background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#ff453a' }}>
+          ⚠️ Storage almost full — delete files to free space.
+        </div>
+      )}
+      {pct >= 75 && pct < 90 && (
+        <div style={{ background: 'rgba(255,159,10,0.12)', border: '1px solid rgba(255,159,10,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#ff9f0a' }}>
+          Storage is above 75% capacity.
+        </div>
+      )}
+    </div>
   );
 };
 

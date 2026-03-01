@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { FiUploadCloud, FiX, FiMusic, FiAlertCircle, FiFolder, FiFile } from 'react-icons/fi';
-import { Card, Button } from '../ui';
+
 
 interface UploadFile {
   id: string;
@@ -230,166 +230,152 @@ const FileUpload = ({
   const getStatusIcon = (status: UploadFile['status']) => {
     switch (status) {
       case 'success':
-        return <div className="w-4 h-4 bg-green-500 rounded-full"></div>;
+        return <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#30d158', flexShrink: 0 }} />;
       case 'error':
-        return <FiAlertCircle className="w-4 h-4 text-red-500" />;
+        return <FiAlertCircle size={14} style={{ color: '#ff453a', flexShrink: 0 }} />;
       case 'uploading':
-        return <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>;
+        return <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />;
       default:
-        return <FiMusic className="w-4 h-4 text-gray-400" />;
+        return <FiMusic size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />;
     }
   };
 
   return (
-    <Card className={className}>
-      <div className="space-y-6">
-        {/* Mode Toggle */}
-        {allowDirectories && (
-          <div className="flex items-center justify-center space-x-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-            <Button
-              onClick={() => setDirectoryMode(false)}
-              variant={!directoryMode ? "primary" : "secondary"}
-              size="sm"
-              className="flex items-center space-x-1"
-            >
-              <FiFile className="w-4 h-4" />
-              <span>Fichiers</span>
-            </Button>
-            <Button
-              onClick={() => setDirectoryMode(true)}
-              variant={directoryMode ? "primary" : "secondary"}
-              size="sm"
-              className="flex items-center space-x-1"
-            >
-              <FiFolder className="w-4 h-4" />
-              <span>Dossiers</span>
-            </Button>
-          </div>
-        )}
-
-        {/* Drop Zone */}
-        <div
-          className={`
-            border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200
-            ${isDragOver 
-              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-            }
-          `}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-        >
-          <FiUploadCloud className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">
-            {directoryMode ? 'Glissez-déposez vos dossiers ou fichiers audio ici' : 'Glissez-déposez vos fichiers audio ici'}
-          </h3>
-          <p className="text-gray-600 dark:text-gray-300 mb-4">
-            {directoryMode ? 'ou cliquez pour sélectionner des dossiers ou fichiers' : 'ou cliquez pour sélectionner des fichiers'}
-          </p>
-          <Button
-            onClick={() => fileInputRef.current?.click()}
-            variant="primary"
-            className="mb-2"
+    <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Mode Toggle */}
+      {allowDirectories && (
+        <div style={{ display: 'flex', gap: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: 4 }}>
+          <button
+            onClick={() => setDirectoryMode(false)}
+            className={!directoryMode ? 'sz-btn sz-btn-primary sz-btn-sm' : 'sz-btn sz-btn-ghost sz-btn-sm'}
+            style={{ flex: 1, justifyContent: 'center' }}
           >
-            {directoryMode ? 'Sélectionner des dossiers' : 'Sélectionner des fichiers'}
-          </Button>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Formats supportés: {acceptedTypes.join(', ')} • Taille max: {maxFileSize} MB
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple={multiple}
-            accept={acceptedTypes.join(',')}
-            onChange={handleFileSelect}
-            className="hidden"
-            {...(directoryMode ? { webkitdirectory: '' } : {})}
-          />
+            <FiFile size={13} /> Files
+          </button>
+          <button
+            onClick={() => setDirectoryMode(true)}
+            className={directoryMode ? 'sz-btn sz-btn-primary sz-btn-sm' : 'sz-btn sz-btn-ghost sz-btn-sm'}
+            style={{ flex: 1, justifyContent: 'center' }}
+          >
+            <FiFolder size={13} /> Folders
+          </button>
         </div>
+      )}
 
-        {/* File List */}
-        {uploadFiles.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-gray-800 dark:text-white">
-                Fichiers ({uploadFiles.length})
-              </h4>
-              <div className="space-x-2">
-                <Button
-                  onClick={clearCompleted}
-                  variant="ghost"
-                  size="sm"
-                  disabled={!uploadFiles.some(f => f.status === 'success')}
-                >
-                  Effacer terminés
-                </Button>
-                <Button
-                  onClick={handleUploadAll}
-                  variant="primary"
-                  size="sm"
-                  disabled={isUploading || !uploadFiles.some(f => f.status === 'pending')}
-                >
-                  {isUploading ? 'Upload en cours...' : 'Uploader tout'}
-                </Button>
-              </div>
-            </div>
+      {/* Drop Zone */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        style={{
+          border: `2px dashed ${isDragOver ? 'var(--accent)' : 'var(--border-light)'}`,
+          borderRadius: 16,
+          padding: '48px 32px',
+          textAlign: 'center',
+          background: isDragOver ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+          transition: 'all 0.2s ease',
+          cursor: 'pointer',
+        }}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <FiUploadCloud size={40} style={{ color: isDragOver ? 'var(--accent)' : 'var(--text-tertiary)', margin: '0 auto 16px', display: 'block', transition: 'color 0.2s' }} />
+        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+          {directoryMode ? 'Drop folders or audio files here' : 'Drop audio files here'}
+        </h3>
+        <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 20 }}>
+          {directoryMode ? 'or click to select folders or files' : 'or click to select files'}
+        </p>
+        <button
+          onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}
+          className="sz-btn sz-btn-primary"
+          style={{ pointerEvents: 'none' }}
+        >
+          {directoryMode ? 'Select folders' : 'Select files'}
+        </button>
+        <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 16 }}>
+          {acceptedTypes.join(', ')} · Max {maxFileSize} MB per file
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple={multiple}
+          accept={acceptedTypes.join(',')}
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+          {...(directoryMode ? { webkitdirectory: '' } : {})}
+        />
+      </div>
 
-            <div className="space-y-2">
-              {uploadFiles.map((uploadFile) => (
-                <div
-                  key={uploadFile.id}
-                  className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                >
-                  <div className="flex-shrink-0">
-                    {getStatusIcon(uploadFile.status)}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-800 dark:text-white truncate">
-                        {uploadFile.file.name}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {formatFileSize(uploadFile.file.size)}
-                      </p>
-                    </div>
-                    
-                    {uploadFile.status === 'uploading' && (
-                      <div className="mt-2">
-                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1">
-                          <div
-                            className="bg-blue-500 h-1 rounded-full transition-all duration-300"
-                            style={{ width: `${uploadFile.progress}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {Math.round(uploadFile.progress)}%
-                        </p>
-                      </div>
-                    )}
-                    
-                    {uploadFile.status === 'error' && uploadFile.error && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {uploadFile.error}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <button
-                    onClick={() => removeFile(uploadFile.id)}
-                    className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    disabled={uploadFile.status === 'uploading'}
-                  >
-                    <FiX className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+      {/* File List */}
+      {uploadFiles.length > 0 && (
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+              {uploadFiles.length} file{uploadFiles.length !== 1 ? 's' : ''}
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={clearCompleted}
+                className="sz-btn sz-btn-ghost sz-btn-sm"
+                disabled={!uploadFiles.some(f => f.status === 'success')}
+              >
+                Clear done
+              </button>
+              <button
+                onClick={handleUploadAll}
+                className="sz-btn sz-btn-primary sz-btn-sm"
+                disabled={isUploading || !uploadFiles.some(f => f.status === 'pending')}
+              >
+                {isUploading ? 'Uploading…' : 'Upload all'}
+              </button>
             </div>
           </div>
-        )}
-      </div>
-    </Card>
+
+          <div>
+            {uploadFiles.map((uploadFile, i) => (
+              <div
+                key={uploadFile.id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '10px 16px',
+                  borderBottom: i < uploadFiles.length - 1 ? '1px solid var(--border)' : 'none',
+                }}
+              >
+                {getStatusIcon(uploadFile.status)}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {uploadFile.file.name}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0, fontFamily: 'Space Grotesk, monospace' }}>
+                      {formatFileSize(uploadFile.file.size)}
+                    </span>
+                  </div>
+                  {uploadFile.status === 'uploading' && (
+                    <div style={{ marginTop: 6 }}>
+                      <div style={{ width: '100%', height: 3, background: 'var(--bg-overlay)', borderRadius: 2 }}>
+                        <div style={{ width: `${uploadFile.progress}%`, height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.3s' }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 3, display: 'block' }}>{Math.round(uploadFile.progress)}%</span>
+                    </div>
+                  )}
+                  {uploadFile.status === 'error' && uploadFile.error && (
+                    <span style={{ fontSize: 11, color: '#ff453a', marginTop: 2, display: 'block' }}>{uploadFile.error}</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => removeFile(uploadFile.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: 4, flexShrink: 0 }}
+                  disabled={uploadFile.status === 'uploading'}
+                >
+                  <FiX size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

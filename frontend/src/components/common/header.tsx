@@ -32,6 +32,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const [searchFocused, _setSearchFocused] = useState(false);
+
   return (
     <>
       <header style={{
@@ -43,34 +45,69 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         zIndex: 90,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 24px',
+        gap: 12,
+        padding: '0 20px',
         background: scrolled ? 'rgba(8,8,16,0.92)' : 'transparent',
         backdropFilter: scrolled ? 'blur(20px)' : 'none',
         borderBottom: scrolled ? '1px solid var(--border)' : '1px solid transparent',
         transition: 'all 0.2s ease',
       }} className="sz-header">
-        {/* Mobile menu button */}
+        {/* Left — mobile menu button */}
         <button
           className="sz-btn sz-btn-icon"
           onClick={onMenuClick}
-          style={{ display: 'none', marginRight: 12 }}
+          style={{ display: 'none', flexShrink: 0 }}
           aria-label="Open menu"
           id="mobile-menu-btn"
         >
           <FiMenu size={20} />
         </button>
 
-        {/* Spacer — left side reserved for page title injected via context if needed */}
-        <div style={{ flex: 1 }} />
+        {/* Center — search bar */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <div
+            className="header-search"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              width: '100%', maxWidth: 420,
+              background: searchFocused ? 'var(--bg-overlay)' : 'var(--bg-elevated)',
+              border: `1px solid ${searchFocused ? 'var(--accent)' : 'var(--border)'}`,
+              borderRadius: 22,
+              padding: '0 14px',
+              height: 36,
+              cursor: 'text',
+              transition: 'all 0.2s ease',
+              boxShadow: searchFocused ? '0 0 0 3px var(--accent-dim)' : 'none',
+            }}
+            onClick={() => { setSearchOpen(true); }}
+          >
+            <FiSearch size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+            <input
+              type="text"
+              placeholder="Search tracks, albums, artists…"
+              readOnly
+              style={{
+                flex: 1, background: 'none', border: 'none', outline: 'none',
+                color: 'var(--text-primary)', fontSize: 13, cursor: 'pointer',
+                fontFamily: 'Manrope, sans-serif',
+              }}
+            />
+            <kbd style={{
+              fontSize: 10, color: 'var(--text-tertiary)', background: 'var(--bg-overlay)',
+              border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px',
+              fontFamily: 'Space Grotesk, monospace', flexShrink: 0,
+            }}>⌘K</kbd>
+          </div>
+        </div>
 
-        {/* Right actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Right — user menu */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {/* Mobile search icon (hidden on desktop) */}
           <button
-            className="sz-btn sz-btn-icon"
+            className="sz-btn sz-btn-icon mobile-search-btn"
             onClick={() => setSearchOpen(true)}
             aria-label="Search"
-            style={{ width: 36, height: 36, borderRadius: 10 }}
+            style={{ width: 36, height: 36, borderRadius: 10, display: 'none' }}
           >
             <FiSearch size={17} />
           </button>
@@ -102,7 +139,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 }}>
                   <FiUser size={13} style={{ color: 'var(--accent)' }} />
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="username-label">
                   {user?.username}
                 </span>
               </button>
@@ -178,6 +215,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           }
           #mobile-menu-btn {
             display: flex !important;
+          }
+          .header-search {
+            display: none !important;
+          }
+          .mobile-search-btn {
+            display: flex !important;
+          }
+          .username-label {
+            display: none !important;
           }
         }
       `}</style>
