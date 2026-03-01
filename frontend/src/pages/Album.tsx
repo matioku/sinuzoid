@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { FiArrowLeft, FiPlay, FiShuffle, FiClock, FiTrash2 } from 'react-icons/fi';
-import { Track } from '../hooks/useTracks';
+import { FiArrowLeft, FiPlay, FiPause, FiShuffle, FiTrash2 } from 'react-icons/fi';
 import { useMusicData, useMusicImages, useMusicUtils, useMusicDeletion } from '../hooks/useMusicStore';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
-import { Button } from '../components/ui';
 import { TrackMenu, DeleteAlbumModal } from '../components/tracks';
 import LogoIcon from '../assets/logos/logo_sinuzoid-cyan.svg?react';
 
@@ -15,130 +13,79 @@ const Album: React.FC = () => {
   const { getThumbnailUrl, getCoverUrl } = useMusicImages();
   const { formatDuration } = useMusicUtils();
   const { handleAlbumDeleted } = useMusicDeletion();
-  const { playAlbum, toggleTrack } = useAudioPlayer();
+  const { playAlbum, toggleTrack, isCurrentTrack, isTrackPlaying } = useAudioPlayer();
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const [showDeleteAlbumModal, setShowDeleteAlbumModal] = useState(false);
+  const [blurBg, setBlurBg] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [hoveredTrack, setHoveredTrack] = useState<string | null>(null);
 
   const album = useMemo(() => {
     if (!albumName) return null;
-    const decodedAlbumName = decodeURIComponent(albumName);
-    return albums.find(a => a.name === decodedAlbumName) || null;
+    return albums.find(a => a.name === decodeURIComponent(albumName)) || null;
   }, [albums, albumName]);
 
   useEffect(() => {
     const loadCover = async () => {
-      if (album?.cover_thumbnail_path) {
-        // Try to get the original cover first, fallback to thumbnail
-        const originalCover = album.tracks.find(t => t.cover_path)?.cover_path;
-        if (originalCover) {
-          const url = await getCoverUrl(originalCover);
-          if (url) {
-            setCoverUrl(url);
-            return;
-          }
-        }
-        // Fallback to thumbnail
+      if (!album) return;
+      const originalCover = album.tracks.find(t => t.cover_path)?.cover_path;
+      if (originalCover) {
+        const url = await getCoverUrl(originalCover);
+        if (url) { setCoverUrl(url); setBlurBg(url); return; }
+      }
+      if (album.cover_thumbnail_path) {
         const url = await getThumbnailUrl(album.cover_thumbnail_path);
         setCoverUrl(url);
+        setBlurBg(url);
       }
     };
     loadCover();
   }, [album, getThumbnailUrl, getCoverUrl]);
 
-  const getMainCodec = () => {
-    if (!album) return '';
-    
-    // Get the most common file type in the album
-    const codecCounts = album.tracks.reduce((acc, track) => {
-      const codec = track.file_type.toUpperCase();
-      acc[codec] = (acc[codec] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    return Object.entries(codecCounts)
-      .sort(([,a], [,b]) => b - a)[0]?.[0] || 'UNKNOWN';
-  };
-
   const albumStats = useMemo(() => {
     if (!album) return null;
-
-    const totalDurationSeconds = album.tracks.reduce((total, track) => {
-      // Handle both ISO 8601 (PT3M45S) and standard (MM:SS) formats
-      if (track.duration.startsWith('PT') || track.duration.startsWith('P')) {
-        const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/;
-        const match = track.duration.match(regex);
-        
-        if (match) {
-          const hours = parseInt(match[1] || '0');
-          const minutes = parseInt(match[2] || '0');
-          const seconds = Math.floor(parseFloat(match[3] || '0'));
-          return total + (hours * 3600) + (minutes * 60) + seconds;
-        }
+    let totalSec = 0;
+    album.tracks.forEach(t => {
+      if (t.duration.startsWith('PT')) {
+        const m = t.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+        if (m) totalSec += (parseInt(m[1]||'0')*3600) + (parseInt(m[2]||'0')*60) + Math.floor(parseFloat(m[3]||'0'));
       } else {
-        const parts = track.duration.split(':');
-        let seconds = 0;
-        if (parts.length === 3) {
-          seconds = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
-        } else if (parts.length === 2) {
-          seconds = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-        }
-        return total + seconds;
+        const p = t.duration.split(':');
+        if (p.length === 2) totalSec += parseInt(p[0])*60 + parseInt(p[1]);
+        else if (p.length === 3) totalSec += parseInt(p[0])*3600 + parseInt(p[1])*60 + parseInt(p[2]);
       }
-      return total;
-    }, 0);
-
-    const formatTotalDuration = (totalSeconds: number) => {
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      
-      if (hours > 0) {
-        return `${hours} h ${minutes} min`;
-      } else {
-        return `${minutes} min`;
-      }
-    };
-
-    return {
-      trackCount: album.tracks.length,
-      totalDuration: formatTotalDuration(totalDurationSeconds),
-      year: album.year,
-      mainCodec: getMainCodec()
-    };
+    });
+    const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60);
+    const dur = h > 0 ? `${h}h ${m}min` : `${m}min`;
+    const codecs: Record<string, number> = {};
+    album.tracks.forEach(t => { const c = t.file_type.toUpperCase(); codecs[c] = (codecs[c]||0)+1; });
+    const mainCodec = Object.entries(codecs).sort(([,a],[,b])=>b-a)[0]?.[0];
+    return { totalDuration: dur, trackCount: album.tracks.length, mainCodec };
   }, [album]);
 
-  const handleTrackPlay = (track: Track) => {
-    toggleTrack(track);
-  };
-
-  const handlePlayAll = () => {
-    if (album?.tracks.length) {
-      playAlbum(album, 0);
-    }
-  };
-
   const handleShuffle = () => {
-    if (album?.tracks.length) {
-      const randomIndex = Math.floor(Math.random() * album.tracks.length);
-      playAlbum(album, randomIndex);
-    }
+    if (!album) return;
+    const shuffled = [...album.tracks].sort(() => Math.random() - 0.5);
+    toggleTrack(shuffled[0]);
   };
 
-  const handleDeleteAlbumSuccess = () => {
-    if (album) {
-      handleAlbumDeleted(album.name);
-      navigate('/library');
-    }
+  const handleDeleteSuccess = () => {
+    handleAlbumDeleted(album!.name);
+    navigate('/library');
   };
 
-  if (isLoading) {
+  // Loading
+  if (isLoading && !album) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-          <div className="flex items-center justify-center py-8 sm:py-16">
-            <div className="animate-pulse text-center">
-              <div className="w-48 h-48 sm:w-64 sm:h-64 bg-gray-300 dark:bg-gray-700 rounded-lg mb-4 sm:mb-6 mx-auto"></div>
-              <div className="h-6 sm:h-8 bg-gray-300 dark:bg-gray-700 rounded w-36 sm:w-48 mb-3 sm:mb-4 mx-auto"></div>
-              <div className="h-4 sm:h-6 bg-gray-300 dark:bg-gray-700 rounded w-24 sm:w-32 mx-auto"></div>
+      <div style={{ padding: 40 }}>
+        <div style={{ display: 'flex', gap: 32 }}>
+          <div className="skeleton" style={{ width: 240, height: 240, borderRadius: 12, flexShrink: 0 }} />
+          <div style={{ flex: 1, paddingTop: 16 }}>
+            <div className="skeleton" style={{ width: 60, height: 16, borderRadius: 4, marginBottom: 16 }} />
+            <div className="skeleton" style={{ width: '60%', height: 40, borderRadius: 6, marginBottom: 12 }} />
+            <div className="skeleton" style={{ width: '30%', height: 20, borderRadius: 4, marginBottom: 24 }} />
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div className="skeleton" style={{ width: 100, height: 40, borderRadius: 8 }} />
+              <div className="skeleton" style={{ width: 100, height: 40, borderRadius: 8 }} />
             </div>
           </div>
         </div>
@@ -148,196 +95,155 @@ const Album: React.FC = () => {
 
   if (!album) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/library')}
-            className="mb-4 sm:mb-6 flex items-center text-gray-600 dark:text-gray-300"
-          >
-            <FiArrowLeft className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Retour à la bibliothèque</span>
-            <span className="sm:hidden">Retour</span>
-          </Button>
-          <div className="text-center py-8 sm:py-16 px-4">
-            <LogoIcon className="w-12 h-12 sm:w-16 sm:h-16 fill-gray-500 dark:fill-gray-400 mx-auto mb-4" />
-            <h3 className="font-heading text-lg sm:text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
-              Album introuvable
-            </h3>
-            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
-              L'album demandé n'existe pas ou a été supprimé.
-            </p>
-          </div>
-        </div>
+      <div style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <LogoIcon style={{ width: 48, height: 48, color: 'var(--text-tertiary)', marginBottom: 16 }} />
+        <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Album not found</h3>
+        <button className="sz-btn sz-btn-ghost" onClick={() => navigate('/library')} style={{ marginTop: 8 }}>
+          <FiArrowLeft size={14} /> Back to Library
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-        {/* Back button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/library')}
-          className="mb-4 sm:mb-6 flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors"
-        >
-          <FiArrowLeft className="w-4 h-4 mr-2" />
-          <span className="hidden sm:inline">Retour à la bibliothèque</span>
-          <span className="sm:hidden">Retour</span>
-        </Button>
+    <div className="fade-in" style={{ position: 'relative', minHeight: '100vh' }}>
+      {/* Blurred background */}
+      {blurBg && (
+        <div style={{
+          position: 'fixed', top: 0, left: 'var(--sidebar-width)', right: 0, height: 360,
+          backgroundImage: `url(${blurBg})`, backgroundSize: 'cover', backgroundPosition: 'center',
+          filter: 'blur(60px)', opacity: 0.18, zIndex: 0, pointerEvents: 'none',
+        }} />
+      )}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {/* Back */}
+        <div style={{ padding: '24px 32px 0' }}>
+          <button
+            className="sz-btn sz-btn-ghost sz-btn-sm"
+            onClick={() => navigate('/library')}
+            style={{ marginBottom: 24 }}
+          >
+            <FiArrowLeft size={14} /> Library
+          </button>
+        </div>
 
-        {/* Album header */}
-        <div className="flex flex-col md:flex-row gap-6 md:gap-8 mb-6 md:mb-8">
-          {/* Album cover */}
-          <div className="flex-shrink-0">
-            <div className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-80 lg:h-80 mx-auto md:mx-0 relative group">
-              {coverUrl ? (
-                <img
-                  src={coverUrl}
-                  alt={`Couverture de ${album.name}`}
-                  className="w-full h-full object-cover rounded-lg shadow-lg"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded-lg shadow-lg flex items-center justify-center">
-                  <LogoIcon className="w-12 h-12 sm:w-16 sm:h-16 fill-gray-500 dark:fill-gray-400" />
+        {/* Hero */}
+        <div style={{ display: 'flex', gap: 32, padding: '0 32px 40px', alignItems: 'flex-end' }}>
+          {/* Cover */}
+          <div style={{
+            width: 220, height: 220, flexShrink: 0, borderRadius: 12, overflow: 'hidden',
+            background: 'var(--bg-overlay)', boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+          }}>
+            {coverUrl
+              ? <img src={coverUrl} alt={album.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1a1a2e, #16213e)' }}>
+                  <LogoIcon style={{ width: 80, height: 80, color: 'var(--accent)' }} />
                 </div>
-              )}
-            </div>
+            }
           </div>
 
-          {/* Album info */}
-          <div className="flex-grow text-center md:text-left">
-            <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-              Album
-            </p>
-            <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3 md:mb-4 leading-tight px-2 md:px-0">
+          {/* Info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-tertiary)', marginBottom: 8 }}>Album</div>
+            <h1 style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {album.name}
             </h1>
-            <div className="flex flex-col md:flex-row md:items-center gap-1 sm:gap-2 md:gap-4 text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-4 md:mb-6 px-2 md:px-0">
-              <span className="font-medium text-base sm:text-lg">{album.artist}</span>
-              {albumStats && (
-                <>
-                  {album.year && (
-                    <span className="hidden md:block text-gray-400">•</span>
-                  )}
-                  {album.year && <span>{album.year}</span>}
-                  <span className="hidden md:block text-gray-400">•</span>
-                  <span>{albumStats.trackCount} titre{albumStats.trackCount > 1 ? 's' : ''}</span>
-                  <span className="hidden md:block text-gray-400">•</span>
-                  <span>{albumStats.totalDuration}</span>
-                  <span className="hidden md:block text-gray-400">•</span>
-                  <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs sm:text-sm font-medium inline-block">
-                    {albumStats.mainCodec}
-                  </span>
-                </>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--text-secondary)', marginBottom: 28, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 600 }}>{album.artist || 'Unknown artist'}</span>
+              {album.year && <><span style={{ color: 'var(--text-tertiary)' }}>·</span><span>{album.year}</span></>}
+              {albumStats && <>
+                <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+                <span>{albumStats.trackCount} tracks</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+                <span>{albumStats.totalDuration}</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+                <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--bg-overlay)', borderRadius: 4, padding: '2px 7px', color: 'var(--accent)', border: '1px solid var(--accent-dim)', letterSpacing: '0.06em' }}>
+                  {albumStats.mainCodec}
+                </span>
+              </>}
             </div>
-
-            {/* Action buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start px-4 sm:px-0">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={handlePlayAll}
-                className="flex items-center justify-center px-6 sm:px-8 w-full sm:w-auto"
-              >
-                <FiPlay className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                Lire
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleShuffle}
-                className="flex items-center justify-center px-4 sm:px-6 w-full sm:w-auto"
-              >
-                <FiShuffle className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                <span className="hidden sm:inline">Lecture aléatoire</span>
-                <span className="sm:hidden">Aléatoire</span>
-              </Button>
-              
-              {album?.name !== 'Singles and miscellaneous tracks' && (
-                <Button
-                  variant="danger"
-                  size="lg"
-                  onClick={() => setShowDeleteAlbumModal(true)}
-                  className="flex items-center justify-center px-4 w-full sm:w-auto text-red-600 border-red-300 hover:border-red-400"
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="sz-btn sz-btn-primary" onClick={() => playAlbum(album, 0)}>
+                <FiPlay size={14} /> Play
+              </button>
+              <button className="sz-btn sz-btn-secondary" onClick={handleShuffle}>
+                <FiShuffle size={14} /> Shuffle
+              </button>
+              {album.name !== 'Singles and miscellaneous tracks' && (
+                <button
+                  className="sz-btn sz-btn-ghost sz-btn-sm"
+                  onClick={() => setShowDeleteModal(true)}
+                  style={{ color: '#ff453a', marginLeft: 4 }}
+                  title="Delete album"
                 >
-                  <FiTrash2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  <span className="hidden sm:inline">Supprimer l'album</span>
-                  <span className="sm:hidden">Supprimer</span>
-                </Button>
+                  <FiTrash2 size={14} />
+                </button>
               )}
-              
             </div>
           </div>
         </div>
 
         {/* Track list */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-visible mb-20">
-          {/* Header */}
-          <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              <div className="w-6 sm:w-8 text-center">#</div>
-              <div className="flex-1 ml-2 sm:ml-4">Titre</div>
-              <div className="w-16 sm:w-32 text-center">
-                <FiClock className="w-3 h-3 sm:w-4 sm:h-4 mx-auto" />
-              </div>
-            </div>
+        <div style={{ padding: '0 32px 40px' }}>
+          {/* Table header */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '40px 1fr 80px 40px',
+            gap: 12, padding: '0 16px 8px',
+            borderBottom: '1px solid var(--border)', marginBottom: 4,
+          }}>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>#</span>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Title</span>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Duration</span>
+            <span />
           </div>
 
-          {/* Tracks */}
-          <div className="divide-y dark:divide-gray-700 divide-gray-200 overflow-visible relative">
-            {album.tracks.map((track, index) => (
+          {album.tracks.map((track, index) => {
+            const isCurrent = isCurrentTrack(track.id);
+            const isPlaying = isTrackPlaying(track.id);
+            const isHovered = hoveredTrack === track.id;
+            const title = track.metadata?.title || track.original_filename.replace(/\.[^/.]+$/, '');
+
+            return (
               <div
                 key={track.id}
-                className="px-3 sm:px-6 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group relative"
-                onClick={() => handleTrackPlay(track)}
+                onMouseEnter={() => setHoveredTrack(track.id)}
+                onMouseLeave={() => setHoveredTrack(null)}
+                onClick={() => toggleTrack(track)}
+                style={{
+                  display: 'grid', gridTemplateColumns: '40px 1fr 80px 40px',
+                  gap: 12, padding: '7px 16px', borderRadius: 8, cursor: 'pointer',
+                  background: isCurrent ? 'var(--accent-dim)' : isHovered ? 'var(--bg-hover)' : 'transparent',
+                  transition: 'background 0.12s ease',
+                }}
               >
-                <div className="flex items-center">
-                  <div className="w-6 sm:w-8 text-center flex-shrink-0">
-                    <span className="text-gray-500 dark:text-gray-400 group-hover:hidden text-xs sm:text-sm">
-                      {track.metadata?.track_number || index + 1}
-                    </span>
-                    <FiPlay className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 dark:text-gray-300 hidden group-hover:block mx-auto" />
-                  </div>
-                  
-                  <div className="flex-1 ml-2 sm:ml-4 min-w-0">
-                    <p className="font-medium text-gray-900 dark:text-white truncate text-sm sm:text-base">
-                      {track.metadata?.title || track.original_filename.replace(/\.[^/.]+$/, "")}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
-                      {track.metadata?.artist || 'Artiste inconnu'}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-3 flex-shrink-0">
-                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium">
-                      {track.file_type.toUpperCase()}
-                    </span>
-                    <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {formatDuration(track.duration)}
-                    </span>
-                    <div className="flex items-center">
-                      <TrackMenu track={track} />
-                    </div>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontFamily: 'Space Grotesk, monospace', color: isCurrent ? 'var(--accent)' : 'var(--text-tertiary)' }}>
+                  {isHovered || isPlaying
+                    ? (isPlaying ? <FiPause size={13} style={{ color: isCurrent ? 'var(--accent)' : 'var(--text-primary)' }} /> : <FiPlay size={13} style={{ color: 'var(--text-primary)', marginLeft: 2 }} />)
+                    : (isCurrent ? <span style={{ color: 'var(--accent)' }}>♪</span> : (track.metadata?.track_number || index + 1))
+                  }
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isCurrent ? 'var(--accent)' : 'var(--text-primary)' }}>{title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 1 }}>{track.metadata?.artist || album.artist || 'Unknown'}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontSize: 13, color: 'var(--text-tertiary)', fontFamily: 'Space Grotesk, monospace' }}>
+                  {formatDuration(track.duration)}
+                </div>
+                <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TrackMenu track={track} />
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-
-        {/* Delete Album Modal */}
-        <DeleteAlbumModal
-          isOpen={showDeleteAlbumModal}
-          onClose={() => setShowDeleteAlbumModal(false)}
-          album={album}
-          onSuccess={handleDeleteAlbumSuccess}
-        />
       </div>
+
+      <DeleteAlbumModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        album={album}
+        onSuccess={handleDeleteSuccess}
+      />
     </div>
   );
 };

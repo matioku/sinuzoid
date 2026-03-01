@@ -1,355 +1,261 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { FaMusic, FaUpload, FaClock, FaHeart, FaChartLine } from 'react-icons/fa';
+import { FiUpload, FiMusic, FiList, FiClock, FiPlay } from 'react-icons/fi';
 import SinuzoidLogo from '../assets/logos/logo_sinuzoid-cyan.svg?react';
 import { useTracks, Track, Album } from '../hooks/useTracks';
 import { useAuth } from '../contexts/AuthContext';
 import { useMusicImages } from '../hooks/useMusicStore';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 
+function useCoverBlob(path: string | undefined) {
+  const [url, setUrl] = useState<string | null>(null);
+  const { getThumbnailUrl } = useMusicImages();
+  useEffect(() => {
+    if (!path) { setUrl(null); return; }
+    let alive = true;
+    getThumbnailUrl(path).then(u => { if (alive) setUrl(u); });
+    return () => { alive = false; };
+  }, [path]);
+  return url;
+}
+
+/* ── Track card ────────────────────────────────────────────────────────── */
+const TrackCard: React.FC<{ track: Track }> = ({ track }) => {
+  const cover = useCoverBlob(track.cover_thumbnail_path);
+  const { toggleTrack, isCurrentTrack, isPlaying } = useAudioPlayer();
+  const playing = isCurrentTrack(track.id) && isPlaying;
+  const title = track.metadata?.title || track.original_filename.replace(/\.[^/.]+$/, '');
+  const artist = track.metadata?.artist || 'Unknown artist';
+
+  return (
+    <div
+      onClick={() => toggleTrack(track)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+        background: playing ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+        border: `1px solid ${playing ? 'rgba(0,229,255,0.3)' : 'var(--border)'}`,
+        transition: 'all 0.15s ease',
+      }}
+      className="home-track-card"
+    >
+      <div style={{
+        width: 44, height: 44, borderRadius: 6, flexShrink: 0,
+        background: 'var(--bg-overlay)', overflow: 'hidden',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        position: 'relative',
+      }}>
+        {cover ? <img src={cover} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <SinuzoidLogo style={{ width: 20, height: 20, color: 'var(--text-tertiary)' }} />}
+        {playing && (
+          <div style={{
+            position: 'absolute', inset: 0, background: 'rgba(0,229,255,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <FiPlay size={14} style={{ color: 'var(--accent)' }} />
+          </div>
+        )}
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{
+          fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          color: playing ? 'var(--accent)' : 'var(--text-primary)',
+        }}>{title}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>{artist}</div>
+      </div>
+      <style>{`.home-track-card:hover { background: var(--bg-overlay) !important; border-color: var(--border-light) !important; }`}</style>
+    </div>
+  );
+};
+
+/* ── Album card ────────────────────────────────────────────────────────── */
+const AlbumCard: React.FC<{ album: Album }> = ({ album }) => {
+  const cover = useCoverBlob(album.cover_thumbnail_path);
+  const navigate = useNavigate();
+  const { playAlbum } = useAudioPlayer();
+
+  return (
+    <div
+      style={{ cursor: 'pointer', flex: '0 0 160px' }}
+      onClick={() => navigate(`/album/${encodeURIComponent(album.name)}`)}
+      className="album-thumb-card"
+    >
+      <div style={{
+        width: 160, height: 160, borderRadius: 10, overflow: 'hidden',
+        background: 'var(--bg-overlay)', marginBottom: 10, position: 'relative',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+      }}>
+        {cover
+          ? <img src={cover} alt={album.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1a1a2e, #16213e)' }}>
+              <SinuzoidLogo style={{ width: 48, height: 48, color: 'var(--accent)' }} />
+            </div>
+        }
+        <div
+          style={{
+            position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: 0, transition: 'opacity 0.2s ease',
+          }}
+          className="album-play-overlay"
+          onClick={e => { e.stopPropagation(); playAlbum(album, 0); }}
+        >
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%', background: 'var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 20px var(--accent-glow)',
+          }}>
+            <FiPlay size={18} style={{ color: '#000', marginLeft: 2 }} />
+          </div>
+        </div>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {album.name === 'Singles and miscellaneous tracks' ? 'Singles' : album.name}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>
+        {album.artist || 'Unknown'} · {album.tracks.length} tracks
+      </div>
+      <style>{`
+        .album-thumb-card:hover .album-play-overlay { opacity: 1 !important; }
+        .album-thumb-card:hover > div:first-child { transform: translateY(-2px); transition: transform 0.2s ease; }
+      `}</style>
+    </div>
+  );
+};
+
+/* ── Quick action ──────────────────────────────────────────────────────── */
+const QuickAction: React.FC<{ icon: React.ReactNode; label: string; to: string; accent?: string }> = ({ icon, label, to, accent }) => (
+  <Link
+    to={to}
+    style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 16px', borderRadius: 10,
+      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+      textDecoration: 'none', color: 'var(--text-primary)',
+      fontSize: 14, fontWeight: 600,
+      transition: 'all 0.15s ease',
+    }}
+    className="quick-action"
+  >
+    <span style={{ color: accent || 'var(--accent)', display: 'flex' }}>{icon}</span>
+    {label}
+    <style>{`.quick-action:hover { background: var(--bg-overlay) !important; border-color: var(--border-light) !important; transform: translateX(2px); }`}</style>
+  </Link>
+);
+
+/* ── Home page ─────────────────────────────────────────────────────────── */
 const Home: React.FC = () => {
   const { tracks, albums, isLoading } = useTracks();
   const { user } = useAuth();
-  const { getThumbnailUrl } = useMusicImages();
-  const { toggleTrack } = useAudioPlayer();
   const navigate = useNavigate();
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
   const [featuredAlbums, setFeaturedAlbums] = useState<Album[]>([]);
 
   useEffect(() => {
     if (tracks.length > 0) {
-      // Prendre les 6 morceaux les plus récents
-      const recent = [...tracks]
-        .sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime())
-        .slice(0, 6);
-      setRecentTracks(recent);
+      setRecentTracks([...tracks].sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime()).slice(0, 8));
     }
-    
     if (albums.length > 0) {
-      // Prendre les 4 premiers albums
-      setFeaturedAlbums(albums.slice(0, 4));
+      setFeaturedAlbums(albums.slice(0, 10));
     }
   }, [tracks, albums]);
 
-  const formatDuration = (duration: string | number) => {
-    if (typeof duration === 'string') {
-      return duration;
-    }
-    const minutes = Math.floor(duration / 60);
-    const seconds = Math.floor(duration % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const QuickActionCard = ({ icon: Icon, title, description, to, color }: {
-    icon: any;
-    title: string;
-    description: string;
-    to: string;
-    color: string;
-  }) => (
-    <Link
-      to={to}
-      className="group bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200"
-    >
-      <div className={`${color} p-3 rounded-lg w-fit mb-4 group-hover:scale-110 transition-transform duration-200`}>
-        <Icon className="w-6 h-6 text-white" />
-      </div>
-      <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-white">{title}</h3>
-      <p className="text-gray-600 dark:text-gray-300 text-sm">{description}</p>
-    </Link>
-  );
-
-  const TrackCard = ({ track }: { track: Track }) => {
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
-
-    useEffect(() => {
-      const loadImage = async () => {
-        if (track.cover_thumbnail_path) {
-          const url = await getThumbnailUrl(track.cover_thumbnail_path);
-          setImageUrl(url);
-        }
-      };
-      loadImage();
-    }, [track.cover_thumbnail_path, getThumbnailUrl]);
-
-    const handleTrackClick = () => {
-      toggleTrack(track);
-    };
-
+  if (!user) {
     return (
-      <div 
-        onClick={handleTrackClick}
-        className="flex items-center space-x-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 group cursor-pointer"
-      >
-        <div className="relative">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={track.metadata?.album || 'Album'}
-              className="w-12 h-12 rounded object-cover group-hover:shadow-md transition-shadow duration-200"
-            />
-          ) : (
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 rounded flex items-center justify-center group-hover:shadow-md transition-shadow duration-200">
-              <SinuzoidLogo className="fill-white w-6 h-6" />
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-gray-800 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
-            {track.metadata?.title || track.original_filename}
-          </h4>
-          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-            {track.metadata?.artist || 'Artiste inconnu'}
-          </p>
-        </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          {track.metadata?.duration ? formatDuration(track.metadata.duration) : track.duration}
-        </div>
-      </div>
-    );
-  };
-
-  const AlbumCard = ({ album }: { album: Album }) => {
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
-
-    useEffect(() => {
-      const loadImage = async () => {
-        if (album.cover_thumbnail_path) {
-          const url = await getThumbnailUrl(album.cover_thumbnail_path);
-          setImageUrl(url);
-        }
-      };
-      loadImage();
-    }, [album.cover_thumbnail_path, getThumbnailUrl]);
-
-    const handleAlbumClick = () => {
-      navigate(`/album/${encodeURIComponent(album.name)}`);
-    };
-
-    return (
-      <div 
-        onClick={handleAlbumClick}
-        className="group cursor-pointer"
-      >
-        <div className="relative mb-3">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={album.name}
-              className="w-full aspect-square rounded-lg object-cover group-hover:shadow-lg group-hover:scale-105 transition-all duration-200"
-            />
-          ) : (
-            <div className="w-full aspect-square bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 rounded-lg flex items-center justify-center group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">
-              <SinuzoidLogo className="fill-white w-16 h-16" />
-            </div>
-          )}
-        </div>
-        <h4 className="font-medium text-gray-800 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">{album.name}</h4>
-        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-          {album.artist || 'Artiste inconnu'} • {album.tracks.length} titre{album.tracks.length > 1 ? 's' : ''}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', padding: 32, textAlign: 'center' }}>
+        <SinuzoidLogo style={{ width: 64, height: 64, color: 'var(--accent)', marginBottom: 24 }} />
+        <h1 style={{ fontSize: 40, fontWeight: 200, letterSpacing: '-0.03em', marginBottom: 12 }}>
+          Welcome to <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Sinuzoid</span>
+        </h1>
+        <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 32, maxWidth: 400 }}>
+          Your self-hosted music streaming platform. Upload, organize, and stream your collection.
         </p>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button className="sz-btn sz-btn-primary sz-btn-lg" onClick={() => navigate('/register')}>Get started</button>
+          <button className="sz-btn sz-btn-secondary sz-btn-lg" onClick={() => navigate('/login')}>Sign in</button>
+        </div>
       </div>
     );
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 text-white">
-        <div className="container mx-auto px-4 py-16">
-          <div className="text-center">
-            <SinuzoidLogo className="fill-white size-20 mx-auto mb-6" />
-            <h1 className="text-5xl font-bold mb-4">
-              {user ? `Bon retour, ${user.username}` : 'Bienvenue sur Sinuzoid'}
-            </h1>
-            <p className="text-xl opacity-90 mb-8">
-              Votre musique, partout, tout le temps
-            </p>
-            {!user && (
-              <div className="space-x-4">
-                <Link
-                  to="/register"
-                  className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200"
-                >
-                  Commencer gratuitement
-                </Link>
-                <Link
-                  to="/login"
-                  className="border border-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-purple-600 transition-colors duration-200"
-                >
-                  Se connecter
-                </Link>
-              </div>
-            )}
-          </div>
+    <div style={{ padding: '32px 32px 0' }} className="fade-in">
+      {/* Greeting */}
+      <div style={{ marginBottom: 40 }}>
+        <h1 style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+          Good {getGreeting()}, <span style={{ color: 'var(--accent)' }}>{user.username}</span>
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 6 }}>
+          {tracks.length > 0 ? `${tracks.length} tracks · ${albums.length} albums in your library` : 'Your library is empty — start uploading music'}
+        </p>
+      </div>
+
+      {/* Quick actions */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, marginBottom: 48 }}>
+        <QuickAction icon={<FiUpload size={16} />} label="Upload music" to="/upload" accent="var(--accent)" />
+        <QuickAction icon={<FiMusic size={16} />} label="Library" to="/library" accent="#ff9f0a" />
+        <QuickAction icon={<FiList size={16} />} label="Playlists" to="/playlists" accent="#bf5af2" />
+        <QuickAction icon={<FiClock size={16} />} label="Recently added" to="/recently-added" accent="#30d158" />
+      </div>
+
+      {isLoading && (
+        <div style={{ display: 'flex', gap: 16, marginBottom: 48, overflow: 'hidden' }}>
+          {[1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ width: 160, height: 200, flexShrink: 0 }} />)}
         </div>
-      </div>
+      )}
 
-      <div className="container mx-auto px-4 py-8">
-        {user ? (
-          <>
-            {/* Actions rapides */}
-            <section className="mb-12">
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Actions rapides</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <QuickActionCard
-                  icon={FaUpload}
-                  title="Uploader"
-                  description="Ajoutez de nouveaux morceaux à votre bibliothèque"
-                  to="/upload"
-                  color="bg-green-500"
-                />
-                <QuickActionCard
-                  icon={FaMusic}
-                  title="Ma bibliothèque"
-                  description="Parcourez toute votre collection"
-                  to="/library"
-                  color="bg-blue-500"
-                />
-                <QuickActionCard
-                  icon={FaHeart}
-                  title="Mes playlists"
-                  description="Gérez vos playlists personnalisées"
-                  to="/playlists"
-                  color="bg-red-500"
-                />
-                <QuickActionCard
-                  icon={FaClock}
-                  title="Récemment ajouté"
-                  description="Découvrez les derniers ajouts"
-                  to="/recently-added"
-                  color="bg-purple-500"
-                />
-              </div>
-            </section>
+      {/* Recently added tracks */}
+      {recentTracks.length > 0 && (
+        <section style={{ marginBottom: 48 }}>
+          <div className="section-header">
+            <h2 className="section-title">Recently Added</h2>
+            <Link to="/recently-added" style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>See all</Link>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
+            {recentTracks.slice(0, 8).map(track => <TrackCard key={track.id} track={track} />)}
+          </div>
+        </section>
+      )}
 
-            {/* Morceaux récents */}
-            {recentTracks.length > 0 && (
-              <section className="mb-12">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Récemment ajouté</h2>
-                  <Link
-                    to="/recently-added"
-                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-                  >
-                    Voir tout
-                  </Link>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {recentTracks.map((track) => (
-                    <TrackCard key={track.id} track={track} />
-                  ))}
-                </div>
-              </section>
-            )}
+      {/* Albums */}
+      {featuredAlbums.length > 0 && (
+        <section style={{ marginBottom: 48 }}>
+          <div className="section-header">
+            <h2 className="section-title">Your Albums</h2>
+            <Link to="/library" style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>See all</Link>
+          </div>
+          <div style={{ display: 'flex', gap: 20, overflowX: 'auto', paddingBottom: 8 }}>
+            {featuredAlbums.map(album => <AlbumCard key={album.name} album={album} />)}
+          </div>
+        </section>
+      )}
 
-            {/* Albums en vedette */}
-            {featuredAlbums.length > 0 && (
-              <section className="mb-12">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Vos albums</h2>
-                  <Link
-                    to="/library"
-                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-                  >
-                    Voir tout
-                  </Link>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  {featuredAlbums.map((album, index) => (
-                    <AlbumCard key={`${album.name}-${index}`} album={album} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Message si aucune musique */}
-            {tracks.length === 0 && !isLoading && (
-              <section className="text-center py-16">
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-8 border border-gray-200 dark:border-gray-700 max-w-md mx-auto">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <SinuzoidLogo className="fill-white w-10 h-10" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                    Votre bibliothèque est vide
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-300 mb-6">
-                    Commencez par uploader vos premiers morceaux pour créer votre collection musicale.
-                  </p>
-                  <Link
-                    to="/upload"
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200 inline-flex items-center space-x-2"
-                  >
-                    <FaUpload className="w-5 h-5" />
-                    <span>Uploader de la musique</span>
-                  </Link>
-                </div>
-              </section>
-            )}
-          </>
-        ) : (
-          /* Section pour les visiteurs non connectés */
-          <section className="py-16">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">
-                  Votre musique, organisée comme vous l'aimez
-                </h2>
-                <div className="space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <FaChartLine className="w-6 h-6 text-blue-600 mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-gray-800 dark:text-white">Uploadez facilement</h3>
-                      <p className="text-gray-600 dark:text-gray-300">
-                        Importez vos fichiers audio et créez votre bibliothèque personnelle
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <FaMusic className="w-6 h-6 text-purple-600 mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-gray-800 dark:text-white">Organisez vos playlists</h3>
-                      <p className="text-gray-600 dark:text-gray-300">
-                        Créez des playlists thématiques et retrouvez facilement vos morceaux favoris
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <FaHeart className="w-6 h-6 text-red-600 mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-gray-800 dark:text-white">Écoutez partout</h3>
-                      <p className="text-gray-600 dark:text-gray-300">
-                        Accédez à votre musique depuis n'importe quel appareil connecté
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-8 rounded-xl border border-gray-200 dark:border-gray-700">
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 text-center">
-                  Rejoignez Sinuzoid
-                </h3>
-                <div className="space-y-4">
-                  <Link
-                    to="/register"
-                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200 text-center block"
-                  >
-                    Créer un compte
-                  </Link>
-                  <Link
-                    to="/login"
-                    className="w-full border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 text-center block"
-                  >
-                    Se connecter
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-      </div>
+      {/* Empty state */}
+      {tracks.length === 0 && !isLoading && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '64px 32px', textAlign: 'center',
+          border: '1px dashed var(--border-light)', borderRadius: 16, marginBottom: 48,
+        }}>
+          <SinuzoidLogo style={{ width: 48, height: 48, color: 'var(--text-tertiary)', marginBottom: 16 }} />
+          <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Your library is empty</h3>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24, maxWidth: 340 }}>
+            Upload your music files to get started. Supports MP3, FLAC, WAV, M4A, and more.
+          </p>
+          <button className="sz-btn sz-btn-primary" onClick={() => navigate('/upload')}>
+            <FiUpload size={14} /> Upload music
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 18) return 'afternoon';
+  return 'evening';
+}
+
 export default Home;
+

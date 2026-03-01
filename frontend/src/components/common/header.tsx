@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
-import { FiUser, FiMenu, FiLogOut, FiSearch } from 'react-icons/fi';
-import { Logo, Button } from '../ui';
-import { AudioPlayer } from '../player/AudioPlayer';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router';
+import { FiSearch, FiMenu, FiUser, FiLogOut, FiSettings } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import GlobalSearch from './GlobalSearch';
 
@@ -11,188 +9,179 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
-  const [isScrolled, setIsScrolled] = useState<boolean>(false);
-  const [isMobileMenuOpen] = useState<boolean>(false);
-  const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
-  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
-  const location = useLocation();
-  const navigate = useNavigate();
+  const [scrolled, setScrolled] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
-    };
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuOpen && !(event.target as Element)?.closest('.user-menu')) {
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false);
       }
     };
-
-    window.addEventListener('scroll', handleScroll);
-    document.addEventListener('mousedown', handleClickOutside);
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [userMenuOpen]);
-
-  const isActive = (path: string): boolean => {
-    return location.pathname === path;
-  };
-
-  const navLinks = [
-    { name: 'Accueil', path: '/' },
-    { name: 'Bibliothèque', path: '/library' },
-    { name: 'Playlists', path: '/playlists' }
-  ];
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-[9999] transition-all duration-300 ${
-        isScrolled 
-          ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-sm' 
-          : 'bg-white dark:bg-gray-900'
-      }`}
-    >
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Logo size="md" variant="both" linkTo="/" />
+    <>
+      <header style={{
+        position: 'fixed',
+        top: 0,
+        left: 'var(--sidebar-width)',
+        right: 0,
+        height: 'var(--header-height)',
+        zIndex: 90,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 24px',
+        background: scrolled ? 'rgba(8,8,16,0.92)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(20px)' : 'none',
+        borderBottom: scrolled ? '1px solid var(--border)' : '1px solid transparent',
+        transition: 'all 0.2s ease',
+      }} className="sz-header">
+        {/* Mobile menu button */}
+        <button
+          className="sz-btn sz-btn-icon"
+          onClick={onMenuClick}
+          style={{ display: 'none', marginRight: 12 }}
+          aria-label="Open menu"
+          id="mobile-menu-btn"
+        >
+          <FiMenu size={20} />
+        </button>
 
-          {/* Desktop: Centered AudioPlayer */}
-          <div className="hidden md:flex flex-1 justify-center max-w-2xl mx-auto">
-            <AudioPlayer variant="headerCompact" className="w-full" />
-          </div>
+        {/* Spacer — left side reserved for page title injected via context if needed */}
+        <div style={{ flex: 1 }} />
 
-          {/* Right Side Icons */}
-          <div className="flex items-center space-x-6">
-            {/* Search button, visible on desktop */}
-            <Button 
-              variant="icon"
-              size="md"
-              className="hidden md:block" 
-              onClick={() => setIsSearchOpen(true)}
-            >
-              <FiSearch className="h-5 w-5" />
-            </Button>
+        {/* Right actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            className="sz-btn sz-btn-icon"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search"
+            style={{ width: 36, height: 36, borderRadius: 10 }}
+          >
+            <FiSearch size={17} />
+          </button>
 
-            {/* Menu button - visible uniquement sur mobile */}
-            <Button 
-              variant="icon"
-              size="md"
-              className="md:hidden" 
-              onClick={onMenuClick}
-            >
-              <FiMenu className="h-5 w-5" />
-            </Button>
-            
-            {isAuthenticated ? (
-              <>
-                {/* User dropdown - uniquement sur desktop */}
-                <div className="relative user-menu hidden md:block">
-                  <Button 
-                    variant="icon"
-                    size="md"
-                    className="flex items-center space-x-2"
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  >
-                    <FiUser className="h-5 w-5" />
-                    <span className="hidden md:block text-sm font-medium">{user?.username}</span>
-                  </Button>
-                  
-                  {userMenuOpen && (
-                    <div className="fixed right-4 top-16 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700 z-[9999]">
-                      <div className="py-1">
-                        <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b dark:border-gray-700">
-                          <div className="font-medium">{user?.username}</div>
-                          <div className="text-xs text-gray-500">{user?.email}</div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            navigate('/profile');
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-start"
-                        >
-                          Profil
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            logout();
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-start"
-                        >
-                          <FiLogOut className="h-4 w-4 mr-2" />
-                          Déconnexion
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center space-x-4">
-                <Button 
-                  variant="nav" 
-                  size="sm"
-                  onClick={() => navigate('/login')}
-                >
-                  Connexion
-                </Button>
-                <Button 
-                  variant="nav" 
-                  size="sm"
-                  onClick={() => navigate('/register')}
-                >
-                  S'inscrire
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Navigation */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-white dark:bg-gray-900 border-t dark:border-gray-800">
-          <div className="container mx-auto px-4 py-3">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`block py-2 text-sm font-medium ${
-                  isActive(link.path)
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-gray-700 dark:text-gray-300'
-                }`}
+          {isAuthenticated ? (
+            <div ref={menuRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setUserMenuOpen(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '5px 10px 5px 6px',
+                  background: userMenuOpen ? 'var(--bg-overlay)' : 'transparent',
+                  border: '1px solid transparent',
+                  borderColor: userMenuOpen ? 'var(--border)' : 'transparent',
+                  borderRadius: 20,
+                  cursor: 'pointer',
+                  color: 'var(--text-primary)',
+                  transition: 'all 0.15s ease',
+                  fontFamily: 'Manrope, sans-serif',
+                }}
+                className="sz-user-btn"
               >
-                {link.name}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+                <div style={{
+                  width: 26, height: 26, borderRadius: '50%',
+                  background: 'var(--accent-dim)',
+                  border: '1px solid var(--accent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <FiUser size={13} style={{ color: 'var(--accent)' }} />
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user?.username}
+                </span>
+              </button>
 
-      {/* Global Search Modal */}
-      {isSearchOpen && (
-        <GlobalSearch 
-          isOpen={isSearchOpen} 
-          onClose={() => setIsSearchOpen(false)} 
-        />
-      )}
-    </header>
+              {userMenuOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                  width: 200,
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+                  animation: 'scaleIn 0.15s ease',
+                  transformOrigin: 'top right',
+                  zIndex: 200,
+                }}>
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{user?.username}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>{user?.email}</div>
+                  </div>
+                  <div style={{ padding: 4 }}>
+                    <button
+                      onClick={() => { navigate('/profile'); setUserMenuOpen(false); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+                        padding: '9px 10px', borderRadius: 8, background: 'none', border: 'none',
+                        cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontFamily: 'Manrope, sans-serif',
+                      }}
+                      className="menu-item"
+                    >
+                      <FiSettings size={15} />
+                      Profile & Settings
+                    </button>
+                    <button
+                      onClick={() => { logout(); setUserMenuOpen(false); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+                        padding: '9px 10px', borderRadius: 8, background: 'none', border: 'none',
+                        cursor: 'pointer', color: '#ff453a', fontSize: 13, fontFamily: 'Manrope, sans-serif',
+                      }}
+                      className="menu-item"
+                    >
+                      <FiLogOut size={15} />
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="sz-btn sz-btn-ghost sz-btn-sm" onClick={() => navigate('/login')}>Sign in</button>
+              <button className="sz-btn sz-btn-primary sz-btn-sm" onClick={() => navigate('/register')}>Get started</button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {searchOpen && <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />}
+
+      <style>{`
+        .sz-user-btn:hover {
+          background: var(--bg-hover) !important;
+          border-color: var(--border) !important;
+        }
+        .menu-item:hover {
+          background: var(--bg-hover) !important;
+        }
+        @media (max-width: 768px) {
+          .sz-header {
+            left: 0 !important;
+          }
+          #mobile-menu-btn {
+            display: flex !important;
+          }
+        }
+      `}</style>
+    </>
   );
 };
 

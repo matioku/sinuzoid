@@ -2,7 +2,7 @@ import { useMusicStore } from '../store/musicStore';
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect } from 'react';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Hook principal pour gérer les morceaux et albums

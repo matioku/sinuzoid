@@ -7,6 +7,7 @@ interface CardProps {
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
   shadow?: 'none' | 'sm' | 'md' | 'lg';
+  glass?: boolean;
 }
 
 const Card = ({ 
@@ -15,39 +16,23 @@ const Card = ({
   subtitle, 
   className = '', 
   padding = 'md',
-  shadow = 'md'
+  glass = false,
 }: CardProps) => {
-  const baseClasses = 'bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700';
-  
-  const paddingClasses = {
-    none: '',
-    sm: 'p-4',
-    md: 'p-6',
-    lg: 'p-8'
-  };
-  
-  const shadowClasses = {
-    none: '',
-    sm: 'shadow-sm',
-    md: 'shadow-md',
-    lg: 'shadow-lg'
-  };
-  
-  const classes = `${baseClasses} ${shadowClasses[shadow]} ${paddingClasses[padding]} ${className}`.trim();
-  
+  const paddingClasses = { none: '', sm: 'p-4', md: 'p-6', lg: 'p-8' }[padding];
+  const base = glass ? 'glass' : 'sz-card';
+  const classes = `${base} ${paddingClasses} ${className}`.trim();
+
   return (
     <div className={classes}>
       {(title || subtitle) && (
-        <div className="mb-6">
+        <div style={{ marginBottom: 24 }}>
           {title && (
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
               {title}
             </h2>
           )}
           {subtitle && (
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-              {subtitle}
-            </p>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{subtitle}</p>
           )}
         </div>
       )}

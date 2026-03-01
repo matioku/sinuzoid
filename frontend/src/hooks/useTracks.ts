@@ -42,7 +42,7 @@ export interface TracksState {
   totalTracks: number;
 }
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const useTracks = () => {
   const [state, setState] = useState<TracksState>({

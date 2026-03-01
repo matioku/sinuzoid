@@ -1,31 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
-import { Button, Input, PasswordInput, Alert, Card, Logo, ThemeToggle } from '../components/ui';
-
-interface LoginForm {
-  email: string;
-  password: string;
-}
+import { PasswordInput } from '../components/ui';
+import SinuzoidLogo from '../assets/logos/logo_sinuzoid-cyan.svg?react';
+import { FiMail } from 'react-icons/fi';
 
 const Login = () => {
-  const [formData, setFormData] = useState<LoginForm>({
-    email: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user starts typing
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
     if (error) setError(null);
   };
 
@@ -33,86 +21,85 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-
     try {
       await login(formData.email, formData.password);
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue lors de la connexion');
-    } finally {
+      setError(err.response?.data?.detail || err.message || 'Incorrect email or password');
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Theme Toggle */}
-        <div className="flex justify-end">
-          <ThemeToggle size="sm" />
-        </div>
-        
-        {/* Header with Logo */}
-        <div className="text-center">
-          <div className="flex justify-center mb-6">
-            <Logo size="lg" variant="both" linkTo="" />
-          </div>
-          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-            Connexion à Sinuzoid
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Ou{' '}
-            <Link
-              to="/register"
-              className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              créez un nouveau compte
-            </Link>
-          </p>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', padding: 24 }}>
+      {/* Background glow */}
+      <div style={{ position: 'fixed', top: '20%', left: '50%', transform: 'translateX(-50%)', width: 600, height: 400, background: 'radial-gradient(circle, rgba(0,229,255,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+      <div style={{ width: '100%', maxWidth: 400 }} className="fade-in">
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <SinuzoidLogo style={{ width: 48, height: 48, color: 'var(--accent)', marginBottom: 16 }} />
+          <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 6 }}>Welcome back</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Sign in to your Sinuzoid account</p>
         </div>
 
-        {/* Login Form */}
-        <Card padding="lg" shadow="lg">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <Input
-              name="email"
-              type="email"
-              label="Adresse email"
-              placeholder="votre@email.com"
-              value={formData.email}
-              onChange={handleInputChange}
-              disabled={isLoading}
-              autoComplete="email"
-              required
-            />
+        {/* Form card */}
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 16, padding: '32px 28px' }}>
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>Email</label>
+              <div style={{ position: 'relative' }}>
+                <FiMail size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+                <input
+                  className="sz-input"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  style={{ paddingLeft: 36, width: '100%' }}
+                  required
+                  autoComplete="email"
+                />
+              </div>
+            </div>
 
-            <PasswordInput
-              name="password"
-              label="Mot de passe"
-              placeholder="Votre mot de passe"
-              value={formData.password}
-              onChange={handleInputChange}
-              disabled={isLoading}
-              autoComplete="current-password"
-              required
-            />
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>Password</label>
+              <PasswordInput
+                name="password"
+                placeholder="Your password"
+                value={formData.password}
+                onChange={handleChange}
+                disabled={isLoading}
+                autoComplete="current-password"
+                required
+              />
+            </div>
 
             {error && (
-              <Alert type="error">
+              <div style={{ background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#ff453a', marginBottom: 16 }}>
                 {error}
-              </Alert>
+              </div>
             )}
 
-            <Button
+            <button
               type="submit"
-              fullWidth
-              isLoading={isLoading}
+              className="sz-btn sz-btn-primary"
               disabled={isLoading}
+              style={{ width: '100%', justifyContent: 'center', padding: '11px 0' }}
             >
-              {isLoading ? 'Connexion...' : 'Se connecter'}
-            </Button>
+              {isLoading ? 'Signing in…' : 'Sign in'}
+            </button>
           </form>
-        </Card>
+        </div>
+
+        <p style={{ textAlign: 'center', marginTop: 24, fontSize: 14, color: 'var(--text-tertiary)' }}>
+          Don't have an account?{' '}
+          <Link to="/register" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+            Create one
+          </Link>
+        </p>
       </div>
     </div>
   );

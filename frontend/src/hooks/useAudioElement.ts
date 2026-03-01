@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useAudioPlayerStore } from '../store/audioPlayerStore';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Hook to handle HTML5 audio and store sync

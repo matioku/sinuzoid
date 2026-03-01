@@ -9,46 +9,27 @@ interface AlertProps {
 }
 
 const Alert = ({ children, type = 'info', title, className = '' }: AlertProps) => {
-  const baseClasses = 'p-4 rounded-md border';
-  
-  const typeConfig = {
-    success: {
-      classes: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300',
-      icon: <FiCheckCircle className="w-5 h-5 text-green-400 dark:text-green-500" />
-    },
-    error: {
-      classes: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300',
-      icon: <FiXCircle className="w-5 h-5 text-red-400 dark:text-red-500" />
-    },
-    warning: {
-      classes: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300',
-      icon: <FiAlertCircle className="w-5 h-5 text-yellow-400 dark:text-yellow-500" />
-    },
-    info: {
-      classes: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300',
-      icon: <FiInfo className="w-5 h-5 text-blue-400 dark:text-blue-500" />
-    }
-  };
-  
-  const config = typeConfig[type];
-  const classes = `${baseClasses} ${config.classes} ${className}`.trim();
-  
+  const config = {
+    success: { icon: <FiCheckCircle size={16} />, color: '#30d158', bg: 'rgba(48,209,88,0.1)', border: 'rgba(48,209,88,0.25)' },
+    error:   { icon: <FiXCircle size={16} />,     color: '#ff453a', bg: 'rgba(255,69,58,0.1)',  border: 'rgba(255,69,58,0.25)' },
+    warning: { icon: <FiAlertCircle size={16} />, color: '#ff9f0a', bg: 'rgba(255,159,10,0.1)', border: 'rgba(255,159,10,0.25)' },
+    info:    { icon: <FiInfo size={16} />,         color: 'var(--accent)', bg: 'var(--accent-dim)', border: 'rgba(0,229,255,0.25)' },
+  }[type];
+
   return (
-    <div className={classes}>
-      <div className="flex">
-        <div className="flex-shrink-0">
-          {config.icon}
-        </div>
-        <div className="ml-3 flex-1">
-          {title && (
-            <h3 className="text-sm font-medium mb-1">
-              {title}
-            </h3>
-          )}
-          <div className={`text-sm ${title ? '' : 'mt-0'}`}>
-            {children}
-          </div>
-        </div>
+    <div
+      className={className}
+      style={{
+        display: 'flex', gap: 10, alignItems: 'flex-start',
+        padding: '12px 14px', borderRadius: 8,
+        background: config.bg, border: `1px solid ${config.border}`,
+        fontSize: 13, color: config.color,
+      }}
+    >
+      <span style={{ flexShrink: 0, marginTop: 1 }}>{config.icon}</span>
+      <div style={{ flex: 1, color: 'var(--text-primary)' }}>
+        {title && <strong style={{ color: config.color, display: 'block', marginBottom: 2 }}>{title}</strong>}
+        {children}
       </div>
     </div>
   );

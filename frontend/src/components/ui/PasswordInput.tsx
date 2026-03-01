@@ -11,29 +11,20 @@ interface PasswordInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
 }
 
 const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(({
-  label,
-  error,
-  helperText,
-  variant = 'default',
-  showToggle = true,
-  ...props
+  label, error, helperText, showToggle = true, ...props
 }, ref) => {
   const [showPassword, setShowPassword] = useState(false);
-  
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-  
+
   const rightIcon = showToggle ? (
     <button
       type="button"
-      onClick={togglePasswordVisibility}
-      className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 focus:outline-none"
+      onClick={() => setShowPassword(v => !v)}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center' }}
     >
-      {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+      {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
     </button>
   ) : undefined;
-  
+
   return (
     <Input
       ref={ref}
@@ -41,7 +32,6 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(({
       label={label}
       error={error}
       helperText={helperText}
-      variant={variant}
       rightIcon={rightIcon}
       {...props}
     />
@@ -49,5 +39,4 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(({
 });
 
 PasswordInput.displayName = 'PasswordInput';
-
 export default PasswordInput;
