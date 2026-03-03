@@ -7,6 +7,13 @@
     <meta name="description" content="Sinuzoid - Plateforme moderne de gestion et de streaming musical. Téléchargez, organisez et écoutez votre collection musicale avec des fonctionnalités avancées." />
     <meta name="keywords" content="musique, streaming, playlist, audio, MP3, FLAC, WAV, M4A, gestion musicale" />
     <meta name="author" content="Sinuzoid Team" />
+    <script>
+      // Initialize dark mode before first paint to prevent flash
+      const saved = localStorage.getItem('darkMode');
+      if (saved === null || saved === 'true') {
+        document.documentElement.classList.add('dark');
+      }
+    </script>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />

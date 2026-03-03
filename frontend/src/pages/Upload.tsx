@@ -2,15 +2,20 @@ import React, { useState } from 'react';
 import { FiUpload, FiCheck, FiInfo } from 'react-icons/fi';
 import FileUpload from '../components/common/FileUpload';
 import StorageInfo from '../components/common/StorageInfo';
+import { useMusicStore } from '../store/musicStore';
 
 const Upload: React.FC = () => {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [refreshStorage, setRefreshStorage] = useState(0);
+  const forceFetch = useMusicStore(s => s.forceFetch);
 
   const handleUploadComplete = (files: File[]) => {
     const n = files.length;
     setUploadSuccess(n === 1 ? `"${files[0].name}" uploaded successfully!` : `${n} files uploaded successfully!`);
-    setTimeout(() => setRefreshStorage(p => p + 1), 1000);
+    setTimeout(() => {
+      forceFetch();
+      setRefreshStorage(p => p + 1);
+    }, 1000);
     setTimeout(() => setUploadSuccess(null), 5000);
   };
 
