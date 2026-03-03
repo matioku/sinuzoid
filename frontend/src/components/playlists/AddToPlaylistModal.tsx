@@ -43,7 +43,7 @@ const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({ isOpen, onClose
   if (!isOpen || !track) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16, backdropFilter: 'blur(4px)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16, paddingTop: 'calc(var(--header-height) + 16px)', backdropFilter: 'blur(4px)' }}>
       <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', borderRadius: 16, width: '100%', maxWidth: 420, boxShadow: '0 24px 60px rgba(0,0,0,0.5)', animation: 'scaleIn 0.15s ease', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>

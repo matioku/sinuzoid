@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import { Playlist, PlaylistCreate, PlaylistUpdate } from '../types/playlist';
 import { playlistApi } from '../services/playlistApi';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 interface PlaylistState {
   // Data
   playlists: Playlist[];
@@ -178,29 +180,44 @@ export const usePlaylistStore = create<PlaylistState>()(
         try {
           const playlist = await playlistApi.getPlaylistById(playlistId);
           
-          // Fetch metadata for all tracks in the playlist
+          // Enrich playlist tracks with metadata.
+          // Prefer tracks already loaded in musicStore (they have full metadata),
+          // and only fall back to individual API calls for tracks not in the store.
           let playlistWithMetadata = playlist;
           if (playlist.tracks && playlist.tracks.length > 0) {
+            // Dynamically import to avoid circular dependency
+            const { useMusicStore } = await import('./musicStore');
+            const musicState = useMusicStore.getState();
+
+            // If music store hasn't loaded tracks yet, trigger a fetch first
+            if (musicState.tracks.length === 0 && musicState.shouldRefetch()) {
+              await musicState.fetchTracks();
+            }
+
+            const storeTracks = useMusicStore.getState().tracks;
+            const storeMap = new Map(storeTracks.map(t => [t.id, t]));
+
             const tracksWithMetadata = await Promise.all(
               playlist.tracks.map(async (track) => {
+                // Use music store track if available (already has metadata)
+                const storeTrack = storeMap.get(track.id);
+                if (storeTrack?.metadata) {
+                  return { ...track, metadata: storeTrack.metadata };
+                }
+
+                // Fall back to individual metadata fetch
                 try {
                   const token = sessionStorage.getItem('access_token');
                   const metadataResponse = await fetch(
-                    `http://localhost:8000/files/tracks/${track.id}/metadata`,
-                    { 
-                      headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                      }
-                    }
+                    `${API_BASE_URL}/files/tracks/${track.id}/metadata`,
+                    { headers: { 'Authorization': `Bearer ${token}` } }
                   );
 
                   if (metadataResponse.ok) {
                     const metadata = await metadataResponse.json();
                     return { ...track, metadata };
-                  } else {
-                    return track;
                   }
+                  return track;
                 } catch (error) {
                   console.warn(`Error loading metadata for track ${track.id}:`, error);
                   return track;

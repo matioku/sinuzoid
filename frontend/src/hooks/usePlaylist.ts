@@ -82,9 +82,11 @@ export const usePlaylist = (playlistId?: string) => {
 
   useEffect(() => {
     if (playlistId) {
-      // Try to get from cache first
+      // Always fetch the full playlist with metadata when opening detail.
+      // The persisted store has tracks without metadata, so we cannot rely on cache.
       const cachedPlaylist = getPlaylistById(playlistId);
-      if (!cachedPlaylist) {
+      const hasMetadata = cachedPlaylist?.tracks?.some(t => (t as any).metadata);
+      if (!cachedPlaylist || !hasMetadata) {
         fetchPlaylistById(playlistId);
       }
     }

@@ -47,7 +47,10 @@ const PlaylistDetail: React.FC = () => {
     navigate('/playlists');
   };
 
-  if (isLoading && !playlist) {
+  // Show skeleton while loading — also covers the case where we have a
+  // cached playlist without metadata and are re-fetching to enrich it
+  const cachedHasMetadata = playlist?.tracks?.some((t: any) => t.metadata);
+  if (isLoading && (!playlist || !cachedHasMetadata)) {
     return (
       <div style={{ padding: 40 }}>
         <div style={{ display: 'flex', gap: 32 }}>
@@ -78,9 +81,13 @@ const PlaylistDetail: React.FC = () => {
   }
 
   return (
-    <div className="fade-in">
-      {/* Blurred gradient background */}
-      <div style={{ position: 'fixed', top: 0, left: 'var(--sidebar-width)', right: 0, height: 320, background: `linear-gradient(180deg, ${accentColor}22, transparent)`, zIndex: 0, pointerEvents: 'none' }} />
+    <div className="fade-in" style={{ position: 'relative' }}>
+      {/* Hero gradient — full bleed, sits at top of content */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 340,
+        background: `linear-gradient(180deg, ${accentColor}30 0%, transparent 100%)`,
+        zIndex: 0, pointerEvents: 'none',
+      }} />
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* Back */}
         <div style={{ padding: '24px 32px 0' }}>
