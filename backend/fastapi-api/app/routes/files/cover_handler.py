@@ -1,6 +1,7 @@
 from fastapi import HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from app.services.storage import StorageService
+from sqlalchemy.orm import Session
 import logging
 import mimetypes
 
@@ -111,6 +112,67 @@ class CoverHandler:
             logger.error(f"Error getting available thumbnails for {filename}: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving thumbnails")
     
+    @staticmethod
+    async def update_track_cover(file: UploadFile, user_id: str, track_id: str, db: Session):
+        """Update cover art for a specific track, replacing any existing cover"""
+        from app.models.models import Track
+        from uuid import UUID
+        from pathlib import Path
+
+        try:
+            try:
+                track_uuid = UUID(track_id)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid track ID format")
+
+            track = db.query(Track).filter(
+                Track.id == track_uuid,
+                Track.user_id == int(user_id)
+            ).first()
+
+            if not track:
+                raise HTTPException(status_code=404, detail="Track not found or access denied")
+
+            # Delete existing cover files to avoid orphans
+            if track.cover_path:
+                old_filename = Path(track.cover_path).name
+                try:
+                    storage_cleanup = StorageService()
+                    storage_cleanup.delete_file(old_filename, "cover", include_thumbnails=True)
+                except Exception as e:
+                    logger.warning(f"Could not delete old cover {old_filename}: {str(e)}")
+
+            storage = StorageService()
+            result = await storage.save_cover_file(file, user_id)
+
+            cover_path = result.get('path')
+            thumbnails = result.get('thumbnails', {})
+            cover_thumbnail_path = (
+                thumbnails.get('medium', {}).get('path') or
+                thumbnails.get('large', {}).get('path') or
+                thumbnails.get('small', {}).get('path')
+            )
+
+            track.cover_path = cover_path
+            track.cover_thumbnail_path = cover_thumbnail_path
+            db.commit()
+            db.refresh(track)
+
+            logger.info(f"Cover updated for track {track_id} by user {user_id}: {cover_path}")
+            return {
+                "message": "Cover updated successfully",
+                "cover_path": cover_path,
+                "cover_thumbnail_path": cover_thumbnail_path,
+                "thumbnails": thumbnails,
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Unexpected error updating cover for track {track_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error during cover update")
+
     @staticmethod
     def delete_cover_file(filename: str, user_id: str, include_thumbnails: bool = True):
         """Deletes a cover image and its thumbnails"""

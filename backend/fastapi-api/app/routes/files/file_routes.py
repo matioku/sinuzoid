@@ -250,6 +250,17 @@ async def get_storage_info(
         logger.error(f"Error getting storage info for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error retrieving storage information")
 
+@router.patch("/tracks/{track_id}/cover")
+async def update_track_cover(
+    track_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update cover art for a specific track"""
+    user_id = str(current_user["id"])
+    return await CoverHandler.update_track_cover(file, user_id, track_id, db)
+
 # Metadata editing operations
 @router.get("/tracks/{track_id}/metadata", response_model=dict)
 async def get_track_metadata(

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiMoreHorizontal, FiTrash2, FiPlus, FiDownload } from 'react-icons/fi';
+import { FiMoreHorizontal, FiTrash2, FiPlus, FiDownload, FiEdit2 } from 'react-icons/fi';
+import { useNavigate } from 'react-router';
 import { Track } from '../../hooks/useTracks';
 import { DeleteTrackModal } from '../tracks';
 import { AddToPlaylistModal } from '../playlists';
@@ -24,6 +25,7 @@ const TrackMenu: React.FC<TrackMenuProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const { handleTrackDeleted } = useMusicDeletion();
   const { downloadTrack } = useDownload();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -42,7 +44,7 @@ const TrackMenu: React.FC<TrackMenuProps> = ({
     if (menuRef.current) {
       const rect = menuRef.current.getBoundingClientRect();
       const windowHeight = window.innerHeight;
-      const dropdownHeight = 120; // Approximate height of dropdown
+      const dropdownHeight = 160; // Approximate height of dropdown (4 items)
       
       // If dropdown would go below viewport, position it above
       if (rect.bottom + dropdownHeight > windowHeight) {
@@ -80,6 +82,12 @@ const TrackMenu: React.FC<TrackMenuProps> = ({
     setIsOpen(false);
   };
 
+  const handleEditMetadataClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    navigate(`/track/${track.id}`);
+  };
+
   const toggleMenu = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!isOpen) {
@@ -99,6 +107,13 @@ const TrackMenu: React.FC<TrackMenuProps> = ({
 
       {isOpen && (
         <div className={`absolute right-0 ${dropdownPosition === 'top' ? 'bottom-8 mb-1' : 'top-8 mt-1'} w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-[9999]`}>
+          <button
+            onClick={handleEditMetadataClick}
+            className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+          >
+            <FiEdit2 className="w-4 h-4 mr-3" />
+            Edit Metadata
+          </button>
           {showAddToPlaylist && (
             <button
               onClick={handleAddToPlaylistClick}

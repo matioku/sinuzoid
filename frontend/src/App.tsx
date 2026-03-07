@@ -19,6 +19,7 @@ import Register from './pages/Register';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import RecentlyAdded from './pages/RecentlyAdded';
+import TrackMetadata from './pages/TrackMetadata';
 
 // Composant interne pour la synchronisation
 const AppWithSync = () => {
@@ -42,6 +43,7 @@ const AppWithSync = () => {
         <Route path="playlists/:playlistId" element={<ProtectedRoute><PlaylistDetail /></ProtectedRoute>} />
         <Route path="recently-added" element={<ProtectedRoute><RecentlyAdded /></ProtectedRoute>} />
         <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="track/:trackId" element={<ProtectedRoute><TrackMetadata /></ProtectedRoute>} />
         {/* Route 404 */}
         <Route path="*" element={<NotFound />} />
       </Route>
