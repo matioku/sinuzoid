@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { FiArrowLeft, FiPlay, FiPause, FiShuffle, FiTrash2 } from 'react-icons/fi';
+import { FiArrowLeft, FiPlay, FiPause, FiShuffle, FiTrash2, FiEdit2 } from 'react-icons/fi';
 import { useMusicData, useMusicImages, useMusicUtils, useMusicDeletion } from '../hooks/useMusicStore';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { TrackMenu, DeleteAlbumModal } from '../components/tracks';
@@ -187,13 +187,14 @@ const Album: React.FC = () => {
         <div style={{ padding: '0 32px 40px' }}>
           {/* Table header */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '40px 1fr 80px 40px',
+            display: 'grid', gridTemplateColumns: '40px 1fr 80px 36px 36px',
             gap: 12, padding: '0 16px 8px',
             borderBottom: '1px solid var(--border)', marginBottom: 4,
           }}>
             <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>#</span>
             <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Title</span>
             <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Duration</span>
+            <span />
             <span />
           </div>
 
@@ -210,7 +211,7 @@ const Album: React.FC = () => {
                 onMouseLeave={() => setHoveredTrack(null)}
                 onClick={() => toggleTrack(track)}
                 style={{
-                  display: 'grid', gridTemplateColumns: '40px 1fr 80px 40px',
+                  display: 'grid', gridTemplateColumns: '40px 1fr 80px 36px 36px',
                   gap: 12, padding: '7px 16px', borderRadius: 8, cursor: 'pointer',
                   background: isCurrent ? 'var(--accent-dim)' : isHovered ? 'var(--bg-hover)' : 'transparent',
                   transition: 'background 0.12s ease',
@@ -228,6 +229,22 @@ const Album: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontSize: 13, color: 'var(--text-tertiary)', fontFamily: 'Space Grotesk, monospace' }}>
                   {formatDuration(track.duration)}
+                </div>
+                {/* Edit metadata */}
+                <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => navigate(`/track/${track.id}`)}
+                    title="Edit metadata"
+                    style={{
+                      width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer',
+                      color: 'var(--text-secondary)',
+                      opacity: isHovered ? 0.7 : 0,
+                      transition: 'opacity 0.15s ease',
+                    }}
+                  >
+                    <FiEdit2 size={13} />
+                  </button>
                 </div>
                 <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <TrackMenu track={track} />

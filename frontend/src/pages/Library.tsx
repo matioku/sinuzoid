@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { FiRefreshCw, FiSearch, FiGrid, FiList, FiPlay, FiPause, FiShuffle } from 'react-icons/fi';
+import { FiRefreshCw, FiSearch, FiGrid, FiList, FiPlay, FiPause, FiShuffle, FiEdit2, FiFilter, FiX } from 'react-icons/fi';
 import { Track } from '../hooks/useTracks';
 import { useMusicData, useMusicUtils, useMusicImages } from '../hooks/useMusicStore';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
@@ -15,6 +15,7 @@ const TrackRow: React.FC<{ track: Track; index: number }> = ({ track, index }) =
   const [hovered, setHovered] = useState(false);
   const { getThumbnailUrl } = useMusicImages();
   const { toggleTrack, isCurrentTrack, isTrackPlaying } = useAudioPlayer();
+  const navigate = useNavigate();
   const isCurrent = isCurrentTrack(track.id);
   const isPlaying = isTrackPlaying(track.id);
   const { formatDuration: fmtDur } = useMusicUtils();
@@ -38,7 +39,7 @@ const TrackRow: React.FC<{ track: Track; index: number }> = ({ track, index }) =
       onClick={() => toggleTrack(track)}
       style={{
         display: 'grid',
-        gridTemplateColumns: '40px 44px 1fr 1fr 80px 40px',
+        gridTemplateColumns: '40px 44px 1fr 1fr 80px 36px 36px',
         alignItems: 'center',
         gap: 12,
         padding: '6px 16px',
@@ -78,6 +79,25 @@ const TrackRow: React.FC<{ track: Track; index: number }> = ({ track, index }) =
 
       {/* Duration */}
       <div style={{ fontSize: 13, color: 'var(--text-tertiary)', fontFamily: 'Space Grotesk, monospace', textAlign: 'right' }}>{dur || '—'}</div>
+
+      {/* Edit */}
+      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button
+          onClick={() => navigate(`/track/${track.id}`)}
+          title="Edit metadata"
+          style={{
+            width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer',
+            color: 'var(--text-secondary)',
+            opacity: hovered ? 0.7 : 0,
+            transition: 'opacity 0.15s ease, background 0.15s ease',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = hovered ? '0.7' : '0'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        >
+          <FiEdit2 size={14} />
+        </button>
+      </div>
 
       {/* Menu */}
       <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -135,6 +155,19 @@ const AlbumThumb: React.FC<{ album: any; onPlay: () => void; onClick: () => void
 };
 
 // ── Library page ──────────────────────────────────────────────────────────────
+interface MetadataFilters {
+  genres: string[];
+  artist: string;
+  yearFrom: string;
+  yearTo: string;
+  bpmFrom: string;
+  bpmTo: string;
+  key: string;
+  formats: string[];
+}
+const EMPTY_FILTERS: MetadataFilters = { genres: [], artist: '', yearFrom: '', yearTo: '', bpmFrom: '', bpmTo: '', key: '', formats: [] };
+const ALL_FORMATS = ['mp3', 'flac', 'wav', 'ogg', 'm4a', 'aac'];
+
 const Library: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -146,6 +179,8 @@ const Library: React.FC = () => {
   const [viewMode, setViewMode] = useState<'albums' | 'tracks'>('albums');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('album');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<MetadataFilters>(EMPTY_FILTERS);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -165,24 +200,95 @@ const Library: React.FC = () => {
     }
   }, [location.state]);
 
+  const availableGenres = useMemo(() =>
+    [...new Set(tracks.map(t => t.metadata?.genre).filter(Boolean) as string[])].sort()
+  , [tracks]);
+
+  const availableKeys = useMemo(() =>
+    [...new Set(tracks.map(t => (t.metadata as any)?.key).filter(Boolean) as string[])].sort()
+  , [tracks]);
+
+  const activeFilterCount = useMemo(() => {
+    let n = 0;
+    if (filters.genres.length) n++;
+    if (filters.artist.trim()) n++;
+    if (filters.yearFrom || filters.yearTo) n++;
+    if (filters.bpmFrom || filters.bpmTo) n++;
+    if (filters.key) n++;
+    if (filters.formats.length) n++;
+    return n;
+  }, [filters]);
+
   const filtered = useMemo(() => {
     let filteredTracks = tracks;
     let filteredAlbums = albums;
+
+    // Text search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filteredTracks = tracks.filter(t =>
+      filteredTracks = filteredTracks.filter(t =>
         t.original_filename.toLowerCase().includes(q) ||
         t.metadata?.title?.toLowerCase().includes(q) ||
         t.metadata?.artist?.toLowerCase().includes(q) ||
-        t.metadata?.album?.toLowerCase().includes(q)
+        t.metadata?.album?.toLowerCase().includes(q) ||
+        t.metadata?.genre?.toLowerCase().includes(q) ||
+        (t.metadata as any)?.key?.toLowerCase().includes(q) ||
+        (t.metadata as any)?.label?.toLowerCase().includes(q) ||
+        (t.metadata as any)?.remixer?.toLowerCase().includes(q) ||
+        (t.metadata as any)?.producer?.toLowerCase().includes(q)
       );
-      filteredAlbums = albums.map(a => ({ ...a, tracks: a.tracks.filter(t =>
-        t.original_filename.toLowerCase().includes(q) ||
-        t.metadata?.title?.toLowerCase().includes(q) ||
-        t.metadata?.artist?.toLowerCase().includes(q) ||
-        a.name.toLowerCase().includes(q)
-      )})).filter(a => a.tracks.length > 0);
     }
+
+    // Metadata filters
+    if (filters.genres.length) {
+      filteredTracks = filteredTracks.filter(t =>
+        t.metadata?.genre && filters.genres.some(g => t.metadata!.genre!.toLowerCase() === g.toLowerCase())
+      );
+    }
+    if (filters.artist.trim()) {
+      const a = filters.artist.toLowerCase();
+      filteredTracks = filteredTracks.filter(t => t.metadata?.artist?.toLowerCase().includes(a));
+    }
+    if (filters.yearFrom) {
+      filteredTracks = filteredTracks.filter(t => {
+        const y = (t.metadata as any)?.date ? parseInt((t.metadata as any).date) : (t.metadata?.year || 0);
+        return y >= parseInt(filters.yearFrom);
+      });
+    }
+    if (filters.yearTo) {
+      filteredTracks = filteredTracks.filter(t => {
+        const y = (t.metadata as any)?.date ? parseInt((t.metadata as any).date) : (t.metadata?.year || 0);
+        return y <= parseInt(filters.yearTo);
+      });
+    }
+    if (filters.bpmFrom) {
+      filteredTracks = filteredTracks.filter(t => {
+        const bpm = parseFloat((t.metadata as any)?.bpm || '0');
+        return bpm >= parseFloat(filters.bpmFrom);
+      });
+    }
+    if (filters.bpmTo) {
+      filteredTracks = filteredTracks.filter(t => {
+        const bpm = parseFloat((t.metadata as any)?.bpm || '0');
+        return bpm > 0 && bpm <= parseFloat(filters.bpmTo);
+      });
+    }
+    if (filters.key) {
+      filteredTracks = filteredTracks.filter(t =>
+        (t.metadata as any)?.key?.toLowerCase().includes(filters.key.toLowerCase())
+      );
+    }
+    if (filters.formats.length) {
+      filteredTracks = filteredTracks.filter(t => filters.formats.includes(t.file_type.toLowerCase()));
+    }
+
+    // Apply text search to albums
+    const filteredTrackIds = new Set(filteredTracks.map(t => t.id));
+    filteredAlbums = albums.map(a => ({
+      ...a, tracks: a.tracks.filter(t => filteredTrackIds.has(t.id))
+    })).filter(a => a.tracks.length > 0);
+
+    // Sort
     switch (sortBy) {
       case 'artist':
         filteredTracks = [...filteredTracks].sort((a, b) => (a.metadata?.artist || '').localeCompare(b.metadata?.artist || ''));
@@ -201,7 +307,7 @@ const Library: React.FC = () => {
         break;
     }
     return { tracks: filteredTracks, albums: filteredAlbums };
-  }, [tracks, albums, searchQuery, sortBy]);
+  }, [tracks, albums, searchQuery, sortBy, filters]);
 
   const stats = useMemo(() => {
     const totalAlbums = albums.filter(a => a.name !== 'Singles and miscellaneous tracks').length;
@@ -289,7 +395,199 @@ const Library: React.FC = () => {
             </button>
           ))}
         </div>
+
+        {/* Filters toggle */}
+        <button
+          className={`sz-btn sz-btn-ghost sz-btn-sm`}
+          onClick={() => setShowFilters(v => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6, position: 'relative',
+            background: showFilters ? 'var(--accent-dim)' : undefined,
+            color: showFilters ? 'var(--accent)' : undefined,
+            border: showFilters ? '1px solid var(--accent-dim)' : undefined,
+          }}
+        >
+          <FiFilter size={13} />
+          Filters
+          {activeFilterCount > 0 && (
+            <span style={{
+              position: 'absolute', top: -5, right: -5, width: 16, height: 16,
+              background: 'var(--accent)', borderRadius: '50%',
+              fontSize: 10, fontWeight: 700, color: '#000',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* Filter panel */}
+      {showFilters && (
+        <div style={{
+          background: 'var(--bg-elevated)', border: '1px solid var(--border-light)',
+          borderRadius: 12, padding: '20px 24px', marginBottom: 16,
+          animation: 'fadeIn 0.15s ease',
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+            {/* Genre */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: 6 }}>Genre</label>
+              <select
+                className="sz-input"
+                value={filters.genres[0] || ''}
+                onChange={e => setFilters(f => ({ ...f, genres: e.target.value ? [e.target.value] : [] }))}
+                style={{ width: '100%', fontSize: 13 }}
+              >
+                <option value="">All genres</option>
+                {availableGenres.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+
+            {/* Artist */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: 6 }}>Artist</label>
+              <input
+                className="sz-input"
+                placeholder="Filter by artist…"
+                value={filters.artist}
+                onChange={e => setFilters(f => ({ ...f, artist: e.target.value }))}
+                style={{ width: '100%', fontSize: 13 }}
+              />
+            </div>
+
+            {/* Year range */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: 6 }}>Year</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input className="sz-input" placeholder="From" type="number" min="1900" max="2099"
+                  value={filters.yearFrom} onChange={e => setFilters(f => ({ ...f, yearFrom: e.target.value }))}
+                  style={{ width: '50%', fontSize: 13 }} />
+                <input className="sz-input" placeholder="To" type="number" min="1900" max="2099"
+                  value={filters.yearTo} onChange={e => setFilters(f => ({ ...f, yearTo: e.target.value }))}
+                  style={{ width: '50%', fontSize: 13 }} />
+              </div>
+            </div>
+
+            {/* BPM range */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: 6 }}>BPM</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input className="sz-input" placeholder="Min" type="number" min="0" max="300"
+                  value={filters.bpmFrom} onChange={e => setFilters(f => ({ ...f, bpmFrom: e.target.value }))}
+                  style={{ width: '50%', fontSize: 13 }} />
+                <input className="sz-input" placeholder="Max" type="number" min="0" max="300"
+                  value={filters.bpmTo} onChange={e => setFilters(f => ({ ...f, bpmTo: e.target.value }))}
+                  style={{ width: '50%', fontSize: 13 }} />
+              </div>
+            </div>
+
+            {/* Key */}
+            {availableKeys.length > 0 && (
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: 6 }}>Key</label>
+                <select
+                  className="sz-input"
+                  value={filters.key}
+                  onChange={e => setFilters(f => ({ ...f, key: e.target.value }))}
+                  style={{ width: '100%', fontSize: 13 }}
+                >
+                  <option value="">All keys</option>
+                  {availableKeys.map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Format chips */}
+          <div style={{ marginTop: 16 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: 8 }}>Format</label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {ALL_FORMATS.map(fmt => {
+                const active = filters.formats.includes(fmt);
+                return (
+                  <button
+                    key={fmt}
+                    onClick={() => setFilters(f => ({
+                      ...f,
+                      formats: active ? f.formats.filter(x => x !== fmt) : [...f.formats, fmt],
+                    }))}
+                    style={{
+                      padding: '4px 12px', borderRadius: 20, border: '1px solid',
+                      fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer',
+                      textTransform: 'uppercase',
+                      background: active ? 'var(--accent-dim)' : 'transparent',
+                      borderColor: active ? 'var(--accent)' : 'var(--border-light)',
+                      color: active ? 'var(--accent)' : 'var(--text-tertiary)',
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    {fmt}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Reset */}
+          {activeFilterCount > 0 && (
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="sz-btn sz-btn-ghost sz-btn-sm"
+                onClick={() => setFilters(EMPTY_FILTERS)}
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                <FiX size={12} /> Clear all filters
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Active filter chips */}
+      {!showFilters && activeFilterCount > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+          {filters.genres.map(g => (
+            <span key={g} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, background: 'var(--accent-dim)', border: '1px solid var(--accent)', fontSize: 12, color: 'var(--accent)' }}>
+              Genre: {g}
+              <button onClick={() => setFilters(f => ({ ...f, genres: [] }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--accent)', display: 'flex', lineHeight: 1 }}><FiX size={11} /></button>
+            </span>
+          ))}
+          {filters.artist && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, background: 'var(--accent-dim)', border: '1px solid var(--accent)', fontSize: 12, color: 'var(--accent)' }}>
+              Artist: {filters.artist}
+              <button onClick={() => setFilters(f => ({ ...f, artist: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--accent)', display: 'flex', lineHeight: 1 }}><FiX size={11} /></button>
+            </span>
+          )}
+          {(filters.yearFrom || filters.yearTo) && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, background: 'var(--accent-dim)', border: '1px solid var(--accent)', fontSize: 12, color: 'var(--accent)' }}>
+              Year: {filters.yearFrom || '…'}–{filters.yearTo || '…'}
+              <button onClick={() => setFilters(f => ({ ...f, yearFrom: '', yearTo: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--accent)', display: 'flex', lineHeight: 1 }}><FiX size={11} /></button>
+            </span>
+          )}
+          {(filters.bpmFrom || filters.bpmTo) && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, background: 'var(--accent-dim)', border: '1px solid var(--accent)', fontSize: 12, color: 'var(--accent)' }}>
+              BPM: {filters.bpmFrom || '…'}–{filters.bpmTo || '…'}
+              <button onClick={() => setFilters(f => ({ ...f, bpmFrom: '', bpmTo: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--accent)', display: 'flex', lineHeight: 1 }}><FiX size={11} /></button>
+            </span>
+          )}
+          {filters.key && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, background: 'var(--accent-dim)', border: '1px solid var(--accent)', fontSize: 12, color: 'var(--accent)' }}>
+              Key: {filters.key}
+              <button onClick={() => setFilters(f => ({ ...f, key: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--accent)', display: 'flex', lineHeight: 1 }}><FiX size={11} /></button>
+            </span>
+          )}
+          {filters.formats.map(fmt => (
+            <span key={fmt} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, background: 'var(--accent-dim)', border: '1px solid var(--accent)', fontSize: 12, color: 'var(--accent)', textTransform: 'uppercase', fontWeight: 700 }}>
+              {fmt}
+              <button onClick={() => setFilters(f => ({ ...f, formats: f.formats.filter(x => x !== fmt) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--accent)', display: 'flex', lineHeight: 1 }}><FiX size={11} /></button>
+            </span>
+          ))}
+          <button className="sz-btn sz-btn-ghost sz-btn-sm" onClick={() => setFilters(EMPTY_FILTERS)} style={{ color: 'var(--text-tertiary)', fontSize: 12, padding: '3px 8px' }}>
+            Clear all
+          </button>
+        </div>
+      )}
 
       {/* Loading skeleton */}
       {isLoading && (
@@ -322,7 +620,7 @@ const Library: React.FC = () => {
         <div>
           {/* Table header */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '40px 44px 1fr 1fr 80px 40px',
+            display: 'grid', gridTemplateColumns: '40px 44px 1fr 1fr 80px 36px 36px',
             alignItems: 'center', gap: 12, padding: '0 16px 8px',
             borderBottom: '1px solid var(--border)', marginBottom: 4,
           }}>
@@ -331,6 +629,7 @@ const Library: React.FC = () => {
             <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Title</span>
             <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Album</span>
             <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Duration</span>
+            <span />
             <span />
           </div>
 

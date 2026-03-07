@@ -13,142 +13,153 @@ interface TrackMenuProps {
   onTrackDeleted?: () => void;
 }
 
-const TrackMenu: React.FC<TrackMenuProps> = ({ 
-  track, 
+// Shared item style with hover tracking
+const MenuItem: React.FC<{
+  onClick: (e: React.MouseEvent) => void;
+  icon: React.ReactNode;
+  label: string;
+  danger?: boolean;
+}> = ({ onClick, icon, label, danger }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        width: '100%', padding: '9px 14px',
+        background: hovered
+          ? (danger ? 'rgba(255,69,58,0.12)' : 'var(--bg-hover)')
+          : 'transparent',
+        border: 'none', cursor: 'pointer', textAlign: 'left',
+        color: danger
+          ? (hovered ? '#ff6b60' : '#ff453a')
+          : (hovered ? 'var(--text-primary)' : 'var(--text-secondary)'),
+        fontSize: 13, fontFamily: 'inherit',
+        transition: 'background 0.1s ease, color 0.1s ease',
+      }}
+    >
+      <span style={{ flexShrink: 0, display: 'flex' }}>{icon}</span>
+      {label}
+    </button>
+  );
+};
+
+const TrackMenu: React.FC<TrackMenuProps> = ({
+  track,
   showAddToPlaylist = true,
-  onTrackDeleted 
+  onTrackDeleted,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
+  const [triggerHovered, setTriggerHovered] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { handleTrackDeleted } = useMusicDeletion();
   const { downloadTrack } = useDownload();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+    const onOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setIsOpen(false);
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
   }, []);
 
-  const calculateDropdownPosition = () => {
-    if (menuRef.current) {
+  const toggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isOpen && menuRef.current) {
       const rect = menuRef.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const dropdownHeight = 160; // Approximate height of dropdown (4 items)
-      
-      // If dropdown would go below viewport, position it above
-      if (rect.bottom + dropdownHeight > windowHeight) {
-        setDropdownPosition('top');
-      } else {
-        setDropdownPosition('bottom');
-      }
+      setDropdownPosition(rect.bottom + 180 > window.innerHeight ? 'top' : 'bottom');
     }
+    setIsOpen(v => !v);
   };
 
   const handleDeleteSuccess = () => {
     handleTrackDeleted(track.id);
     setShowDeleteModal(false);
     setIsOpen(false);
-    if (onTrackDeleted) {
-      onTrackDeleted();
-    }
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowDeleteModal(true);
-    setIsOpen(false);
-  };
-
-  const handleAddToPlaylistClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowAddToPlaylistModal(true);
-    setIsOpen(false);
-  };
-
-  const handleDownloadClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    await downloadTrack(track);
-    setIsOpen(false);
-  };
-
-  const handleEditMetadataClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsOpen(false);
-    navigate(`/track/${track.id}`);
-  };
-
-  const toggleMenu = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!isOpen) {
-      calculateDropdownPosition();
-    }
-    setIsOpen(!isOpen);
+    onTrackDeleted?.();
   };
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div style={{ position: 'relative' }} ref={menuRef}>
+      {/* Trigger */}
       <button
         onClick={toggleMenu}
-        className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+        onMouseEnter={() => setTriggerHovered(true)}
+        onMouseLeave={() => setTriggerHovered(false)}
+        title="Track options"
+        style={{
+          width: 28, height: 28,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: isOpen ? 'var(--bg-hover)' : 'transparent',
+          border: 'none', borderRadius: 6, cursor: 'pointer',
+          color: 'var(--text-secondary)',
+          opacity: triggerHovered || isOpen ? 1 : 0.35,
+          transition: 'opacity 0.15s ease, background 0.15s ease',
+        }}
       >
-        <FiMoreHorizontal className="w-4 h-4" />
+        <FiMoreHorizontal size={16} />
       </button>
 
+      {/* Dropdown */}
       {isOpen && (
-        <div className={`absolute right-0 ${dropdownPosition === 'top' ? 'bottom-8 mb-1' : 'top-8 mt-1'} w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-[9999]`}>
-          <button
-            onClick={handleEditMetadataClick}
-            className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-          >
-            <FiEdit2 className="w-4 h-4 mr-3" />
-            Edit Metadata
-          </button>
+        <div style={{
+          position: 'absolute', right: 0,
+          ...(dropdownPosition === 'top' ? { bottom: 34 } : { top: 34 }),
+          width: 192,
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-light)',
+          borderRadius: 10,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.3)',
+          zIndex: 9999,
+          overflow: 'hidden',
+          animation: 'scaleIn 0.12s ease forwards',
+          transformOrigin: dropdownPosition === 'top' ? 'bottom right' : 'top right',
+          paddingTop: 4, paddingBottom: 4,
+        }}>
+          <MenuItem
+            onClick={(e) => { e.stopPropagation(); setIsOpen(false); navigate(`/track/${track.id}`); }}
+            icon={<FiEdit2 size={14} />}
+            label="Edit Metadata"
+          />
+
+          <div style={{ height: 1, background: 'var(--border)', margin: '4px 10px' }} />
+
           {showAddToPlaylist && (
-            <button
-              onClick={handleAddToPlaylistClick}
-              className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-            >
-              <FiPlus className="w-4 h-4 mr-3" />
-              Ajouter à une playlist
-            </button>
+            <MenuItem
+              onClick={(e) => { e.stopPropagation(); setShowAddToPlaylistModal(true); setIsOpen(false); }}
+              icon={<FiPlus size={14} />}
+              label="Add to Playlist"
+            />
           )}
-          <button
-            onClick={handleDownloadClick}
-            className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-          >
-            <FiDownload className="w-4 h-4 mr-3" />
-            Télécharger
-          </button>
-          <button
-            onClick={handleDeleteClick}
-            className="w-full px-4 py-2 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
-          >
-            <FiTrash2 className="w-4 h-4 mr-3" />
-            Supprimer
-          </button>
+          <MenuItem
+            onClick={async (e) => { e.stopPropagation(); await downloadTrack(track); setIsOpen(false); }}
+            icon={<FiDownload size={14} />}
+            label="Download"
+          />
+
+          <div style={{ height: 1, background: 'var(--border)', margin: '4px 10px' }} />
+
+          <MenuItem
+            onClick={(e) => { e.stopPropagation(); setShowDeleteModal(true); setIsOpen(false); }}
+            icon={<FiTrash2 size={14} />}
+            label="Delete"
+            danger
+          />
         </div>
       )}
 
-      {/* Delete Modal */}
       <DeleteTrackModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         track={track}
         onSuccess={handleDeleteSuccess}
       />
-
-      {/* Add to Playlist Modal */}
       {showAddToPlaylist && (
         <AddToPlaylistModal
           isOpen={showAddToPlaylistModal}

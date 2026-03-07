@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { FiHome, FiBookOpen, FiList, FiPlus, FiClock, FiUpload, FiUser } from 'react-icons/fi';
+import { FiHome, FiBookOpen, FiList, FiPlus, FiClock, FiUpload, FiUser, FiTag } from 'react-icons/fi';
 import SinuzoidLogo from '../../assets/logos/logo_sinuzoid-cyan.svg?react';
 import SinuzoidTextLogo from '../../assets/logos/logo_sinuzoid_text-cyan.svg?react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -25,6 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
     { name: 'Library',        icon: <FiBookOpen size={18} />, path: '/library' },
     { name: 'Recently Added', icon: <FiClock size={18} />,   path: '/recently-added' },
     { name: 'Playlists',      icon: <FiList size={18} />,    path: '/playlists' },
+    { name: 'Metadata',       icon: <FiTag size={18} />,     path: '/metadata' },
     { name: 'Upload',         icon: <FiUpload size={18} />,  path: '/upload' },
   ];
 
