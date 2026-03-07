@@ -103,13 +103,15 @@ const PlaylistCard: React.FC<{
         >
           <button
             onClick={e => { e.stopPropagation(); setMenuOpen(false); onEdit(playlist); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'Manrope, sans-serif' }}
+            className="playlist-dropdown-item"
+            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 14px', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'Manrope, sans-serif' }}
           >
             <FiEdit size={13} /> Edit
           </button>
           <button
             onClick={e => { e.stopPropagation(); setMenuOpen(false); onDelete(playlist); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', color: '#ff453a', fontSize: 13, fontFamily: 'Manrope, sans-serif' }}
+            className="playlist-dropdown-item playlist-dropdown-item--danger"
+            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 14px', border: 'none', cursor: 'pointer', color: '#ff453a', fontSize: 13, fontFamily: 'Manrope, sans-serif' }}
           >
             <FiTrash2 size={13} /> Delete
           </button>

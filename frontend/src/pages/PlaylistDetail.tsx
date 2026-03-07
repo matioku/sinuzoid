@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router';
 import { FiArrowLeft, FiPlay, FiPause, FiShuffle, FiMoreHorizontal, FiEdit, FiTrash2, FiPlus, FiMusic } from 'react-icons/fi';
 import { usePlaylist, usePlaylistUtils, usePlaylistOperations } from '../hooks/usePlaylist';
@@ -19,7 +20,25 @@ const PlaylistDetail: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddTracksModal, setShowAddTracksModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [hoveredTrack, setHoveredTrack] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const close = () => setShowMenu(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [showMenu]);
+
+  const openMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setShowMenu(v => !v);
+  };
 
   const stats = playlist ? calculatePlaylistStats(playlist) : null;
 
@@ -134,20 +153,24 @@ const PlaylistDetail: React.FC = () => {
                 <FiPlus size={14} /> Add tracks
               </button>
               <div style={{ position: 'relative', marginLeft: 4 }}>
-                <button className="sz-btn sz-btn-ghost sz-btn-sm" onClick={() => setShowMenu(v => !v)}>
+                <button ref={menuBtnRef} className="sz-btn sz-btn-ghost sz-btn-sm" onClick={openMenu}>
                   <FiMoreHorizontal size={16} />
                 </button>
-                {showMenu && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '4px 0', minWidth: 160, zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
-                    <button onClick={() => { setShowMenu(false); setShowEditModal(true); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 14 }}>
+                {showMenu && createPortal(
+                  <div
+                    style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '4px 0', minWidth: 160, zIndex: 9999, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <button className="playlist-dropdown-item" onClick={() => { setShowMenu(false); setShowEditModal(true); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 14px', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 14, fontFamily: 'Manrope, sans-serif' }}>
                       <FiEdit size={13} /> Edit playlist
                     </button>
-                    <button onClick={() => { setShowMenu(false); setShowDeleteModal(true); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', color: '#ff453a', fontSize: 14 }}>
+                    <button className="playlist-dropdown-item playlist-dropdown-item--danger" onClick={() => { setShowMenu(false); setShowDeleteModal(true); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 14px', border: 'none', cursor: 'pointer', color: '#ff453a', fontSize: 14, fontFamily: 'Manrope, sans-serif' }}>
                       <FiTrash2 size={13} /> Delete playlist
                     </button>
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
             </div>
@@ -214,7 +237,6 @@ const PlaylistDetail: React.FC = () => {
       <PlaylistModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} playlist={playlist} onSuccess={() => { setShowEditModal(false); refetch?.(); }} />
       <DeletePlaylistModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} playlist={playlist} onSuccess={handleDeleteSuccess} />
       <AddTracksToPlaylistModal isOpen={showAddTracksModal} onClose={() => setShowAddTracksModal(false)} playlistId={playlist.id} existingTrackIds={playlist.tracks?.map(t => t.id) || []} onTracksAdded={() => { setShowAddTracksModal(false); refetch?.(); }} />
-      {showMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setShowMenu(false)} />}
     </div>
   );
 };

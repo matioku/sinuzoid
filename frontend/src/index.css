@@ -434,6 +434,18 @@ body {
 .sz-btn-sm { padding: 6px 14px; font-size: 13px; }
 .sz-btn-lg { padding: 12px 28px; font-size: 15px; }
 
+/* ─── Dropdown Menu Items ────────────────────────────────────────────────── */
+.playlist-dropdown-item {
+  background: transparent;
+  transition: background 0.1s ease;
+}
+.playlist-dropdown-item:hover {
+  background: var(--bg-hover);
+}
+.playlist-dropdown-item--danger:hover {
+  background: rgba(255, 69, 58, 0.1);
+}
+
 /* ─── Modal Backdrop ─────────────────────────────────────────────────────── */
 .sz-modal-backdrop {
   position: fixed;
