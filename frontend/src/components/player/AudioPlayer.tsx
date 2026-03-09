@@ -1,40 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   FiPlay, FiPause, FiSkipBack, FiSkipForward,
-  FiShuffle, FiRepeat, FiVolume2, FiVolumeX, FiLoader
+  FiShuffle, FiRepeat, FiVolume2, FiVolumeX, FiLoader, FiMaximize2,
 } from 'react-icons/fi';
 import { useAudioPlayerStore } from '../../store/audioPlayerStore';
 import { useAudioContext } from '../../contexts/AudioContext';
 import { formatDuration } from '../../utils/formatters';
+import { useCoverUrl } from '../../hooks/useCoverUrl';
+import { Scrubber } from './Scrubber';
 import LogoIcon from '../../assets/logos/logo_sinuzoid-cyan.svg?react';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface AudioPlayerProps {
   variant?: 'bottom' | 'header' | 'mini' | 'full' | 'headerCompact' | 'mobile';
   className?: string;
+  onExpandClick?: () => void;
 }
 
-function useCoverUrl(path: string | undefined) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (!path) { setUrl(null); return; }
-    let blobUrl: string | null = null;
-    const token = sessionStorage.getItem('access_token');
-    if (!token) return;
-    const filename = path.split('/').pop();
-    if (!filename) return;
-    fetch(`${API_BASE_URL}/files/cover/${encodeURIComponent(filename)}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(r => r.ok ? r.blob() : null)
-      .then(blob => { if (blob) { blobUrl = URL.createObjectURL(blob); setUrl(blobUrl); } })
-      .catch(() => {});
-    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
-  }, [path]);
-  return url;
-}
-
-export const AudioPlayer: React.FC<AudioPlayerProps> = ({ variant = 'bottom', className = '' }) => {
+export const AudioPlayer: React.FC<AudioPlayerProps> = ({
+  variant = 'bottom',
+  className = '',
+  onExpandClick,
+}) => {
   const {
     currentTrack, isPlaying, isLoading, isShuffleOn, repeatMode, volume, isMuted,
     playlist, toggle, next, previous, toggleShuffle, toggleRepeat, setVolume, toggleMute,
@@ -59,7 +45,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ variant = 'bottom', cl
   // Legacy variants — kept for any remaining usage
   if (variant === 'mini' && !currentTrack) return null;
   if (variant !== 'bottom' && variant !== 'mobile') {
-    // Fallback thin bar for old usages
     if (!currentTrack) return (
       <div className={`flex items-center justify-center text-sm ${className}`} style={{ color: 'var(--text-tertiary)' }}>
         No track playing
@@ -80,43 +65,63 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ variant = 'bottom', cl
     );
   }
 
-  // ── Bottom bar ─────────────────────────────────────────────────────────
+  // ── Bottom bar ──────────────────────────────────────────────────────────────
   return (
-    <div style={{
-      height: '100%',
-      background: 'rgba(10,10,18,0.96)',
-      backdropFilter: 'blur(30px)',
-      borderTop: '1px solid var(--border-light)',
-      display: 'grid',
-      gridTemplateColumns: '1fr 2fr 1fr',
-      alignItems: 'center',
-      padding: '0 20px',
-      gap: 16,
-    }} className={className}>
-      {/* LEFT — track info */}
+    <div
+      style={{
+        height: '100%',
+        background: 'rgba(5, 5, 12, 0.97)',
+        backdropFilter: 'blur(40px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        display: 'grid',
+        gridTemplateColumns: '280px 1fr 280px',
+        alignItems: 'center',
+        padding: '0 20px',
+        gap: 12,
+      }}
+      className={className}
+    >
+      {/* LEFT — cover + track info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-        <div style={{
-          width: 48, height: 48, borderRadius: 8, flexShrink: 0,
-          background: 'var(--bg-overlay)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          overflow: 'hidden',
-          boxShadow: currentTrack ? '0 2px 12px rgba(0,0,0,0.5)' : 'none',
-        }}>
+        <div
+          onClick={currentTrack ? onExpandClick : undefined}
+          title={currentTrack ? 'Open fullscreen player' : undefined}
+          style={{
+            width: 54, height: 54,
+            borderRadius: 10,
+            flexShrink: 0,
+            background: 'var(--bg-overlay)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden',
+            boxShadow: coverUrl
+              ? '0 4px 20px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.05)'
+              : 'none',
+            cursor: currentTrack ? 'pointer' : 'default',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          }}
+          className="player-cover-thumb"
+        >
           {coverUrl ? (
-            <img src={coverUrl} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            <LogoIcon style={{ width: 22, height: 22, color: 'var(--text-tertiary)' }} />
+            <LogoIcon style={{ width: 24, height: 24, color: 'var(--text-tertiary)' }} />
           )}
         </div>
+
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{
-            fontSize: 13, fontWeight: 600, color: currentTrack ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            fontSize: 13, fontWeight: 700, letterSpacing: '-0.01em',
+            color: currentTrack ? 'var(--text-primary)' : 'var(--text-tertiary)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {currentTrack ? title : 'Nothing playing'}
           </div>
           {currentTrack && (
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{
+              fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {artist}
             </div>
           )}
@@ -124,19 +129,21 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ variant = 'bottom', cl
       </div>
 
       {/* CENTER — controls + progress */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <ControlBtn
-            onClick={toggleShuffle}
-            active={isShuffleOn}
-            title="Shuffle"
-          >
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <ControlBtn onClick={toggleShuffle} active={isShuffleOn} title="Shuffle">
             <FiShuffle size={14} />
           </ControlBtn>
           <ControlBtn onClick={previous} disabled={!hasPlaylist} title="Previous">
             <FiSkipBack size={16} />
           </ControlBtn>
-          <PlayBtn onClick={toggle} disabled={!hasPlaylist || isLoading} isLoading={isLoading} isPlaying={isPlaying} size={36} />
+          <PlayBtn
+            onClick={toggle}
+            disabled={!hasPlaylist || isLoading}
+            isLoading={isLoading}
+            isPlaying={isPlaying}
+            size={38}
+          />
           <ControlBtn onClick={next} disabled={!hasPlaylist} title="Next">
             <FiSkipForward size={16} />
           </ControlBtn>
@@ -148,7 +155,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ variant = 'bottom', cl
             <FiRepeat size={14} />
             {repeatMode === 'track' && (
               <span style={{
-                position: 'absolute', top: 2, right: 2,
+                position: 'absolute', top: 3, right: 3,
                 width: 4, height: 4, borderRadius: '50%',
                 background: 'var(--accent)',
               }} />
@@ -156,47 +163,60 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ variant = 'bottom', cl
           </ControlBtn>
         </div>
 
-        {/* Progress bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', maxWidth: 420 }}>
-          <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'Space Grotesk, monospace', minWidth: 30, textAlign: 'right' }}>
+        {/* Progress */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', maxWidth: 460 }}>
+          <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'Space Grotesk, monospace', minWidth: 32, textAlign: 'right' }}>
             {formatDuration(currentTime)}
           </span>
-          <div className="progress-bar-container" style={{ flex: 1 }} onClick={handleProgressClick}>
-            <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
+          <div style={{ flex: 1 }}>
+            <Scrubber currentTime={currentTime} duration={duration} onSeek={seekTo} />
           </div>
-          <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'Space Grotesk, monospace', minWidth: 30 }}>
+          <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'Space Grotesk, monospace', minWidth: 32 }}>
             {formatDuration(duration)}
           </span>
         </div>
       </div>
 
-      {/* RIGHT — volume */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+      {/* RIGHT — volume + fullscreen */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
         <ControlBtn onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
-          {isMuted || volume === 0 ? <FiVolumeX size={16} /> : <FiVolume2 size={16} />}
+          {isMuted || volume === 0 ? <FiVolumeX size={15} /> : <FiVolume2 size={15} />}
         </ControlBtn>
-        <div style={{ width: 80 }}>
+        <div style={{ width: 88 }}>
           <input
             type="range" min="0" max="1" step="0.02"
             value={isMuted ? 0 : volume}
             onChange={e => setVolume(parseFloat(e.target.value))}
             className="sz-slider"
-            style={{ width: '100%' }}
+            style={{ width: '100%', '--slider-fill': `${(isMuted ? 0 : volume) * 100}%` } as React.CSSProperties}
           />
         </div>
+        <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 6px' }} />
+        <ControlBtn
+          onClick={onExpandClick}
+          title="Open fullscreen player"
+          disabled={!currentTrack}
+        >
+          <FiMaximize2 size={14} />
+        </ControlBtn>
       </div>
+
+      <style>{`
+        .player-cover-thumb:hover { transform: scale(1.05) !important; }
+        .control-btn:hover:not(:disabled) { color: var(--text-primary) !important; background: var(--bg-hover) !important; }
+      `}</style>
     </div>
   );
 };
 
-/* ── Small helper components ─────────────────────────────────────────────── */
-function ControlBtn({ children, onClick, disabled, active, title, style: extraStyle }: {
+/* ── Helper components ──────────────────────────────────────────────────────── */
+
+function ControlBtn({ children, onClick, disabled, active, title }: {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   active?: boolean;
   title?: string;
-  style?: React.CSSProperties;
 }) {
   return (
     <button
@@ -204,19 +224,19 @@ function ControlBtn({ children, onClick, disabled, active, title, style: extraSt
       disabled={disabled}
       title={title}
       style={{
-        background: 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+        background: 'none', border: 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer',
         color: active ? 'var(--accent)' : 'var(--text-secondary)',
         opacity: disabled ? 0.35 : 1,
         padding: 6, borderRadius: 6,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative',
-        transition: 'color 0.15s ease',
-        ...extraStyle,
+        transition: 'color 0.15s ease, background 0.15s ease',
+        flexShrink: 0,
       }}
       className="control-btn"
     >
       {children}
-      <style>{`.control-btn:hover:not(:disabled) { color: var(--text-primary) !important; background: var(--bg-hover) !important; }`}</style>
     </button>
   );
 }
@@ -243,6 +263,7 @@ function PlayBtn({ onClick, disabled, isLoading, isPlaying, size }: {
         transition: 'transform 0.15s ease, box-shadow 0.15s ease',
         flexShrink: 0,
         color: '#000',
+        margin: '0 4px',
       }}
       className="play-btn"
     >
@@ -253,17 +274,20 @@ function PlayBtn({ onClick, disabled, isLoading, isPlaying, size }: {
           : <FiPlay size={size * 0.4} style={{ marginLeft: 2 }} />
       }
       <style>{`
-        .play-btn:hover:not(:disabled) { transform: scale(1.06); box-shadow: 0 0 24px var(--accent-glow) !important; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .play-btn:hover:not(:disabled) { transform: scale(1.07) !important; box-shadow: 0 0 24px var(--accent-glow) !important; }
       `}</style>
     </button>
   );
 }
 
-function ProgressBar({ progress, onClick }: { progress: number; onClick: (e: React.MouseEvent<HTMLDivElement>) => void }) {
+function ProgressBar({ progress, onClick }: {
+  progress: number;
+  onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
+}) {
   return (
     <div className="progress-bar-container" style={{ width: '100%' }} onClick={onClick}>
       <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
     </div>
   );
 }
+

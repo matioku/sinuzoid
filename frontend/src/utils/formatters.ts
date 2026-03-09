@@ -1,17 +1,31 @@
 /**
- * Formate une durée en secondes au format MM:SS ou HH:MM:SS
+ * Formate une durée vers MM:SS ou HH:MM:SS.
+ * Accepte un nombre (secondes), une chaîne ISO 8601 ("PT3M45S") ou "MM:SS".
  */
-export const formatDuration = (seconds: number): string => {
+export const formatDuration = (input: number | string): string => {
+  if (typeof input === 'string') {
+    if (input.startsWith('PT')) {
+      const match = input.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+      if (!match) return '0:00';
+      const h = parseFloat(match[1] || '0');
+      const m = parseFloat(match[2] || '0');
+      const s = parseFloat(match[3] || '0');
+      return formatDuration(h * 3600 + m * 60 + s);
+    }
+    return input; // already "MM:SS"
+  }
+
+  const seconds = input;
   if (!seconds || isNaN(seconds)) return '0:00';
-  
+
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  
+
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
-  
+
   return `${minutes}:${secs.toString().padStart(2, '0')}`;
 };
 

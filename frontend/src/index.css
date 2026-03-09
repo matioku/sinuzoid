@@ -45,7 +45,7 @@
   /* Layout */
   --sidebar-width:  240px;
   --header-height:  56px;
-  --player-height:  80px;
+  --player-height:  88px;
 
   /* Typography */
   font-family: 'Manrope', system-ui, sans-serif;
@@ -123,6 +123,16 @@ body {
   to { transform: rotate(360deg); }
 }
 
+@keyframes fsCoverIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fsAmbientIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 @keyframes skeleton-shimmer {
   0%   { background-position: -400px 0; }
   100% { background-position: 400px 0; }
@@ -169,14 +179,25 @@ body {
 .sz-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: rgba(255,255,255,0.15);
+  background: linear-gradient(
+    to right,
+    var(--accent) var(--slider-fill, 0%),
+    rgba(255, 255, 255, 0.12) var(--slider-fill, 0%)
+  );
+  border: none;
 }
 
 .sz-slider::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.12);
   border: none;
+}
+
+.sz-slider::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 .sz-slider::-webkit-slider-thumb {

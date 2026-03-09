@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router';
 import Header from '../common/header';
 import Sidebar from '../common/sidebar';
-import { AudioPlayer } from '../player';
+import { AudioPlayer, FullscreenPlayer } from '../player';
 import { useAudioPlayerStore } from '../../store/audioPlayerStore';
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const { currentTrack } = useAudioPlayerStore();
 
   return (
@@ -55,8 +56,16 @@ const Layout: React.FC = () => {
           zIndex: 100,
           height: 'var(--player-height)',
         }}>
-          <AudioPlayer variant="bottom" />
+          <AudioPlayer variant="bottom" onExpandClick={() => setFullscreenOpen(true)} />
         </div>
+      )}
+
+      {/* Fullscreen player — always mounted when a track exists for smooth transitions */}
+      {currentTrack && (
+        <FullscreenPlayer
+          open={fullscreenOpen}
+          onClose={() => setFullscreenOpen(false)}
+        />
       )}
 
       {/* Mobile styles */}
