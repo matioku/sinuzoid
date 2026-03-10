@@ -378,12 +378,13 @@ function DetailsView({ currentTrack, largeCoverUrl, title, artist, album }: Deta
   const { metadata, original_filename, file_size, file_type, duration, upload_date } = currentTrack;
 
   const trackMeta = [
-    { label: 'Title',  value: metadata?.title || title },
-    { label: 'Artist', value: metadata?.artist || artist },
-    { label: 'Album',  value: album },
-    { label: 'Year',   value: metadata?.year },
-    { label: 'Genre',  value: metadata?.genre },
-    { label: 'Track',  value: metadata?.track_number },
+    { label: 'Title',        value: metadata?.title || title },
+    { label: 'Artist',       value: metadata?.artist || artist },
+    { label: 'Album Artist', value: metadata?.albumartist && metadata.albumartist !== metadata?.artist ? metadata.albumartist : null },
+    { label: 'Album',        value: album },
+    { label: 'Year',         value: metadata?.year },
+    { label: 'Genre',        value: metadata?.genre },
+    { label: 'Track',        value: metadata?.track_number },
   ].filter(r => r.value != null && r.value !== '') as { label: string; value: string | number }[];
 
   const fileMeta = [
@@ -394,7 +395,7 @@ function DetailsView({ currentTrack, largeCoverUrl, title, artist, album }: Deta
     { label: 'Uploaded', value: formatDate(upload_date) },
   ].filter(r => r.value != null && r.value !== '') as { label: string; value: string }[];
 
-  const standardKeys = new Set(['title', 'artist', 'album', 'year', 'genre', 'track_number', 'duration']);
+  const standardKeys = new Set(['title', 'artist', 'albumartist', 'album', 'year', 'genre', 'track_number', 'duration']);
   const extended = metadata
     ? Object.entries(metadata).filter(([k, v]) => !standardKeys.has(k) && v != null && v !== '')
     : [];

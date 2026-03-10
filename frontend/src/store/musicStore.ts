@@ -198,7 +198,8 @@ export const useMusicStore = create<MusicState>()(
 
           tracksWithMetadata.forEach(track => {
             const albumName = track.metadata?.album || 'Singles and miscellaneous tracks';
-            const artist = track.metadata?.artist || 'Artiste inconnu';
+            const albumartist = track.metadata?.albumartist || undefined;
+            const artist = albumartist || track.metadata?.artist || 'Artiste inconnu';
             const year = track.metadata?.year;
 
             if (albumName === 'Singles and miscellaneous tracks') {
@@ -208,6 +209,7 @@ export const useMusicStore = create<MusicState>()(
                 albumsMap.set(albumName, {
                   name: albumName,
                   artist,
+                  albumartist,
                   year,
                   cover_thumbnail_path: track.cover_thumbnail_path,
                   tracks: []
@@ -316,7 +318,8 @@ export const useMusicStore = create<MusicState>()(
 
           tracksWithMetadata.forEach(track => {
             const albumName = track.metadata?.album || 'Singles and miscellaneous tracks';
-            const artist = track.metadata?.artist || 'Artiste inconnu';
+            const albumartist = track.metadata?.albumartist || undefined;
+            const artist = albumartist || track.metadata?.artist || 'Artiste inconnu';
             const year = track.metadata?.year;
 
             if (albumName === 'Singles and miscellaneous tracks') {
@@ -326,6 +329,7 @@ export const useMusicStore = create<MusicState>()(
                 albumsMap.set(albumName, {
                   name: albumName,
                   artist,
+                  albumartist,
                   year,
                   cover_thumbnail_path: track.cover_thumbnail_path,
                   tracks: []

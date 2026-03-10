@@ -28,7 +28,8 @@ export interface Track {
 
 export interface Album {
   name: string;
-  artist?: string;
+  artist?: string;       // display artist (albumartist if set, else first track artist)
+  albumartist?: string;  // raw TPE2 / albumartist tag value
   year?: number;
   cover_thumbnail_path?: string;
   tracks: Track[];
@@ -127,7 +128,8 @@ export const useTracks = () => {
 
       tracksWithMetadata.forEach(track => {
         const albumName = track.metadata?.album || 'Singles and miscellaneous tracks';
-        const artist = track.metadata?.artist || 'Unknown artist';
+        const albumartist = track.metadata?.albumartist || undefined;
+        const artist = albumartist || track.metadata?.artist || 'Unknown artist';
         const year = track.metadata?.year;
 
         if (albumName === 'Singles and miscellaneous tracks') {
@@ -137,6 +139,7 @@ export const useTracks = () => {
             albumsMap.set(albumName, {
               name: albumName,
               artist,
+              albumartist,
               year,
               cover_thumbnail_path: track.cover_thumbnail_path,
               tracks: []
