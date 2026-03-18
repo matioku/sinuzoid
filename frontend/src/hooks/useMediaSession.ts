@@ -73,11 +73,13 @@ export function useMediaSession(seekTo: (time: number) => void) {
     const artist = currentTrack.metadata?.artist || 'Unknown artist';
     const album  = currentTrack.metadata?.album  || '';
 
-    // Set metadata immediately without artwork so the OS shows the track ASAP
     navigator.mediaSession.metadata = new MediaMetadata({ title, artist, album, artwork: [] });
 
-    const coverPath = currentTrack.cover_thumbnail_path;
-    if (!coverPath) return;
+    const smallPath = currentTrack.cover_thumbnail_path;
+    if (!smallPath) return;
+
+    const largePath = smallPath.replace('_thumb_small.', '_thumb_large.');
+    const coverPath = largePath || smallPath;
 
     const token = sessionStorage.getItem('access_token');
     if (!token) return;
@@ -101,7 +103,7 @@ export function useMediaSession(seekTo: (time: number) => void) {
         if (navigator.mediaSession.metadata) {
           navigator.mediaSession.metadata = new MediaMetadata({
             title, artist, album,
-            artwork: [{ src: blobUrl, sizes: '150x150', type: 'image/webp' }],
+            artwork: [{ src: blobUrl, sizes: '600x600', type: 'image/webp' }],
           });
         }
       })
