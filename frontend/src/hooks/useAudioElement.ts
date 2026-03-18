@@ -8,6 +8,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
  */
 export const useAudioElement = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const currentBlobUrlRef = useRef<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   
   const {
@@ -71,6 +72,10 @@ export const useAudioElement = () => {
         audioRef.current = null;
         setIsReady(false);
       }
+      if (currentBlobUrlRef.current) {
+        URL.revokeObjectURL(currentBlobUrlRef.current);
+        currentBlobUrlRef.current = null;
+      }
     };
   }, []);
 
@@ -110,15 +115,14 @@ export const useAudioElement = () => {
       return response.blob();
     })
     .then(blob => {
+      // Revoke the previous blob URL before assigning the new one
+      if (currentBlobUrlRef.current) {
+        URL.revokeObjectURL(currentBlobUrlRef.current);
+      }
       const blobUrl = URL.createObjectURL(blob);
+      currentBlobUrlRef.current = blobUrl;
       audio.src = blobUrl;
       audio.load();
-      
-      audio.addEventListener('loadstart', () => {
-        if (audio.src.startsWith('blob:')) {
-          URL.revokeObjectURL(audio.src);
-        }
-      }, { once: true });
     })
     .catch(error => {
       console.error('Error loading audio:', error);
