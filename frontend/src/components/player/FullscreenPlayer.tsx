@@ -6,6 +6,7 @@ import {
   FiVolume2, FiVolumeX,
   FiMusic, FiInfo, FiList,
   FiLoader, FiPlay, FiPause,
+  FiMaximize2, FiMinimize2,
 } from 'react-icons/fi';
 import { useAudioPlayerStore } from '../../store/audioPlayerStore';
 import { useAudioContext } from '../../contexts/AudioContext';
@@ -25,6 +26,7 @@ interface FullscreenPlayerProps {
 
 export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({ open, onClose }) => {
   const [view, setView] = useState<FSView>('now-playing');
+  const [coverMode, setCoverMode] = useState(false);
 
   const {
     currentTrack, isPlaying, isLoading, isShuffleOn, repeatMode,
@@ -39,6 +41,11 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({ open, onClos
     ?.replace('_thumb_small.', '_thumb_large.');
   const largeCoverUrl = useCoverUrl(largeThumbnailPath || currentTrack?.cover_path);
   const ambientCoverUrl = useCoverUrl(currentTrack?.cover_thumbnail_path);
+  // Original full-res cover for cover mode
+  const originalCoverUrl = useCoverUrl(currentTrack?.cover_path ?? undefined);
+
+  // Exit cover mode on track change
+  useEffect(() => { setCoverMode(false); }, [currentTrack?.id]);
 
   const hasPlaylist = playlist.length > 0;
   const title = currentTrack?.metadata?.title || currentTrack?.original_filename?.replace(/\.[^/.]+$/, '') || '';
@@ -95,10 +102,30 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({ open, onClos
             }}
           />
         )}
+        {/* Dark scrim — ensures text is always readable regardless of cover brightness */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.50) 45%, rgba(0,0,0,0.70) 100%)',
+        }} />
       </div>
 
+      {/* ── Cover mode overlay ───────────────────────────────────────────── */}
+      {coverMode && (
+        <CoverModeView
+          coverUrl={originalCoverUrl || largeCoverUrl}
+          title={title}
+          artist={artist}
+          isPlaying={isPlaying}
+          onClose={() => setCoverMode(false)}
+          toggle={toggle}
+          previous={previous}
+          next={next}
+          hasPlaylist={hasPlaylist}
+        />
+      )}
+
       {/* ── Content ─────────────────────────────────────────────────────── */}
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%', visibility: coverMode ? 'hidden' : 'visible' }}>
 
         {/* Header */}
         <div style={{
@@ -149,6 +176,7 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({ open, onClos
                 toggle={toggle} next={next} previous={previous}
                 toggleShuffle={toggleShuffle} toggleRepeat={toggleRepeat}
                 setVolume={setVolume} toggleMute={toggleMute} seekTo={seekTo}
+                onToggleCoverMode={() => setCoverMode(true)}
               />
             </div>
           )}
@@ -209,6 +237,9 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({ open, onClos
         .fs-ctrl-btn:hover:not(:disabled) { color: #fff !important; background: rgba(255,255,255,0.08) !important; }
         .fs-play-btn:hover:not(:disabled) { transform: scale(1.06) !important; box-shadow: 0 0 40px rgba(255,255,255,0.22), 0 4px 20px rgba(0,0,0,0.5) !important; }
         .fs-queue-item:hover { background: rgba(255,255,255,0.05) !important; }
+        .fs-expand-btn:hover { background: rgba(0,0,0,0.75) !important; color: #fff !important; }
+        .fs-covermode-close:hover { background: rgba(255,255,255,0.15) !important; color: #fff !important; }
+        .fs-covermode-ctrl:hover:not(:disabled) { background: rgba(255,255,255,0.15) !important; color: #fff !important; }
       `}</style>
     </div>
   );
@@ -230,6 +261,7 @@ interface NowPlayingProps {
   toggleShuffle: () => void; toggleRepeat: () => void;
   setVolume: (v: number) => void; toggleMute: () => void;
   seekTo: (t: number) => void;
+  onToggleCoverMode: () => void;
 }
 
 function NowPlayingView({
@@ -237,7 +269,7 @@ function NowPlayingView({
   isPlaying, isLoading, isShuffleOn, repeatMode,
   volume, isMuted, hasPlaylist, currentTime, duration,
   toggle, next, previous, toggleShuffle, toggleRepeat,
-  setVolume, toggleMute, seekTo,
+  setVolume, toggleMute, seekTo, onToggleCoverMode,
 }: NowPlayingProps) {
   return (
     <div style={{
@@ -255,12 +287,30 @@ function NowPlayingView({
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, marginBottom: 32,
           animation: 'fsCoverIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+          position: 'relative',
         }}
       >
         {largeCoverUrl ? (
           <img src={largeCoverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <LogoIcon style={{ width: 80, height: 80, color: 'rgba(255,255,255,0.12)' }} />
+        )}
+        {largeCoverUrl && (
+          <button
+            onClick={onToggleCoverMode}
+            title="Cover fullscreen"
+            className="fs-expand-btn"
+            style={{
+              position: 'absolute', bottom: 10, right: 10,
+              background: 'rgba(0,0,0,0.52)', border: 'none', borderRadius: 7,
+              width: 30, height: 30, cursor: 'pointer',
+              color: 'rgba(255,255,255,0.75)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background 0.15s ease, color 0.15s ease',
+            }}
+          >
+            <FiMaximize2 size={13} />
+          </button>
         )}
       </div>
 
@@ -274,7 +324,7 @@ function NowPlayingView({
           {title || '—'}
         </h2>
         <p style={{
-          fontSize: 15, color: 'rgba(255,255,255,0.62)', margin: 0,
+          fontSize: 15, color: 'rgba(255,255,255,0.72)', margin: 0,
           marginBottom: album ? 4 : 0,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -282,7 +332,7 @@ function NowPlayingView({
         </p>
         {album && (
           <p style={{
-            fontSize: 12, color: 'rgba(255,255,255,0.38)', margin: 0,
+            fontSize: 12, color: 'rgba(255,255,255,0.48)', margin: 0,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {album}
@@ -606,5 +656,155 @@ function FSPlayBtn({ onClick, disabled, isLoading, isPlaying }: {
           : <FiPlay size={26} style={{ marginLeft: 3 }} />
       }
     </button>
+  );
+}
+
+/* ── Cover mode overlay ───────────────────────────────────────────────────── */
+
+function CoverModeView({ coverUrl, title, artist, isPlaying, onClose, toggle, previous, next, hasPlaylist }: {
+  coverUrl: string | null;
+  title: string; artist: string;
+  isPlaying: boolean;
+  onClose: () => void;
+  toggle: () => void;
+  previous: () => void;
+  next: () => void;
+  hasPlaylist: boolean;
+}) {
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 10,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      overflow: 'hidden',
+    }}>
+      {/* Ambient background — blurred cover filling the entire surface */}
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(155deg, #06061c 0%, #0d0527 28%, #050f1e 58%, #07070f 100%)',
+        }} />
+        {coverUrl && (
+          <img
+            src={coverUrl}
+            alt=""
+            style={{
+              position: 'absolute', inset: '-30%',
+              width: '160%', height: '160%',
+              objectFit: 'cover',
+              filter: 'blur(80px) saturate(2.4)',
+              opacity: 0.7,
+              transform: 'scale(1.1)',
+            }}
+          />
+        )}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(0,0,0,0.28)',
+        }} />
+      </div>
+
+      {/* Cover image — full screen, letterboxed on top of ambient */}
+      {coverUrl && (
+        <img
+          src={coverUrl}
+          alt=""
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            objectFit: 'contain',
+          }}
+        />
+      )}
+
+      {/* Top gradient + close button */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0,
+        padding: '14px 20px',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, transparent 100%)',
+        display: 'flex', alignItems: 'center',
+      }}>
+        <button
+          onClick={onClose}
+          className="fs-covermode-close"
+          title="Exit cover view"
+          style={{
+            background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%',
+            width: 36, height: 36,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: 'rgba(255,255,255,0.7)',
+            transition: 'background 0.15s ease, color 0.15s ease',
+          }}
+        >
+          <FiMinimize2 size={17} />
+        </button>
+      </div>
+
+      {/* Bottom gradient + info + mini controls */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        padding: '40px 28px 32px',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16,
+      }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{
+            fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {title || '—'}
+          </div>
+          <div style={{
+            fontSize: 14, color: 'rgba(255,255,255,0.65)', marginTop: 4,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {artist}
+          </div>
+        </div>
+
+        {/* Mini playback controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          <button
+            onClick={previous}
+            disabled={!hasPlaylist}
+            className="fs-covermode-ctrl"
+            style={{
+              background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%',
+              width: 40, height: 40, cursor: hasPlaylist ? 'pointer' : 'not-allowed',
+              opacity: hasPlaylist ? 1 : 0.35,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'rgba(255,255,255,0.8)', transition: 'background 0.15s ease, color 0.15s ease',
+            }}
+          >
+            <FiSkipBack size={18} />
+          </button>
+          <button
+            onClick={toggle}
+            style={{
+              background: '#fff', border: 'none', borderRadius: '50%',
+              width: 50, height: 50, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#0a0a1a',
+              boxShadow: '0 0 24px rgba(255,255,255,0.18)',
+            }}
+          >
+            {isPlaying ? <FiPause size={20} /> : <FiPlay size={20} style={{ marginLeft: 2 }} />}
+          </button>
+          <button
+            onClick={next}
+            disabled={!hasPlaylist}
+            className="fs-covermode-ctrl"
+            style={{
+              background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%',
+              width: 40, height: 40, cursor: hasPlaylist ? 'pointer' : 'not-allowed',
+              opacity: hasPlaylist ? 1 : 0.35,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'rgba(255,255,255,0.8)', transition: 'background 0.15s ease, color 0.15s ease',
+            }}
+          >
+            <FiSkipForward size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

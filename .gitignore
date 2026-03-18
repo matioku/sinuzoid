@@ -60,3 +60,5 @@ tests/
 
 *backups/
 *.backup.*
+
+.playwright-mcp/
