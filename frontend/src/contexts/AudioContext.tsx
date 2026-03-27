@@ -1,6 +1,7 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAudioElement } from '../hooks/useAudioElement';
 import { useMediaSession } from '../hooks/useMediaSession';
+import { useLastFm } from '../hooks/useLastFm';
 
 interface AudioContextType {
   isReady: boolean;
@@ -16,6 +17,7 @@ interface AudioProviderProps {
 export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
   const { isReady, seekTo } = useAudioElement();
   useMediaSession(seekTo);
+  useLastFm();
 
   return (
     <AudioContext.Provider value={{ isReady, seekTo }}>

@@ -12,7 +12,9 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.7",
     "@types/jszip": "^3.4.0",
+    "@types/md5": "^2.3.6",
     "jszip": "^3.10.1",
+    "md5": "^2.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",

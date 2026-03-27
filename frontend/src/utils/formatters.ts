@@ -30,6 +30,17 @@ export const formatDuration = (input: number | string): string => {
 };
 
 /**
+ * Parse une durée ISO 8601 ("PT3M45S") en secondes
+ */
+export const parseDurationSeconds = (iso: string): number => {
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+  if (!match) return 0;
+  return parseFloat(match[1] || '0') * 3600
+       + parseFloat(match[2] || '0') * 60
+       + parseFloat(match[3] || '0');
+};
+
+/**
  * Formate une taille de fichier en octets vers une unité lisible
  */
 export const formatFileSize = (bytes: number): string => {

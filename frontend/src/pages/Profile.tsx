@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { FiUser, FiMail, FiLock, FiTrash2, FiEdit3, FiCheck, FiX } from 'react-icons/fi';
+import { SiLastdotfm } from 'react-icons/si';
 import { PasswordInput } from '../components/ui';
 import { StorageInfo } from '../components/common';
 import { DeleteAllTracksModal } from '../components/tracks';
 import { useMusicData, useMusicDeletion } from '../hooks';
+import { useLastFmStore } from '../store/lastfmStore';
+import { getSession, buildAuthUrl } from '../services/lastfmApi';
+
+const LASTFM_API_KEY = import.meta.env.VITE_LASTFM_API_KEY ?? '';
+const LASTFM_SHARED_SECRET = import.meta.env.VITE_LASTFM_SHARED_SECRET ?? '';
 
 const Profile = () => {
   const { user, changePassword } = useAuth();
@@ -16,6 +23,35 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { sessionKey, username: lfmUsername, scrobblingEnabled, nowPlayingEnabled, scrobbleThreshold,
+          setSession, clearSession, setScrobblingEnabled, setNowPlayingEnabled, setScrobbleThreshold } = useLastFmStore();
+  const [lastfmLoading, setLastfmLoading] = useState(false);
+  const [lastfmError, setLastfmError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (!token) return;
+    if (!LASTFM_API_KEY || !LASTFM_SHARED_SECRET) {
+      setLastfmError('Last.fm API key not configured.');
+      return;
+    }
+    setLastfmLoading(true);
+    setLastfmError(null);
+    getSession(token, LASTFM_API_KEY, LASTFM_SHARED_SECRET)
+      .then(session => {
+        setSession(session.key, session.name);
+        setSearchParams(prev => { prev.delete('token'); return prev; }, { replace: true });
+      })
+      .catch(err => setLastfmError(`Could not connect to Last.fm: ${err.message}`))
+      .finally(() => setLastfmLoading(false));
+  }, []);
+
+  const handleLastFmConnect = () => {
+    const callbackUrl = `${window.location.origin}/profile`;
+    window.location.href = buildAuthUrl(LASTFM_API_KEY, callbackUrl);
+  };
 
   if (!user) return null;
 
@@ -138,6 +174,88 @@ const Profile = () => {
               <button type="button" className="sz-btn sz-btn-ghost" onClick={() => { setIsEditingPassword(false); setError(null); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); }}><FiX size={13} /> Cancel</button>
             </div>
           </form>
+        )}
+      </div>
+
+      {/* Last.fm */}
+      <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 16, padding: '24px', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <SiLastdotfm size={18} style={{ color: '#d51007' }} />
+          <h2 style={{ fontSize: 15, fontWeight: 700 }}>Last.fm</h2>
+        </div>
+
+        {lastfmError && (
+          <div style={{ background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#ff453a', marginBottom: 16 }}>
+            {lastfmError}
+          </div>
+        )}
+
+        {!sessionKey ? (
+          <div>
+            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 16 }}>
+              Connect your Last.fm account to scrobble tracks and update Now Playing.
+            </p>
+            <button
+              className="sz-btn sz-btn-primary"
+              onClick={handleLastFmConnect}
+              disabled={lastfmLoading || !LASTFM_API_KEY}
+            >
+              <SiLastdotfm size={13} />
+              {lastfmLoading ? 'Connecting…' : 'Connect Last.fm'}
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: 'var(--bg-overlay)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 16 }}>
+              <SiLastdotfm size={15} style={{ color: '#d51007', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>Connected as</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{lfmUsername}</div>
+              </div>
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '12px 16px', background: 'var(--bg-overlay)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 10 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Scrobbling</div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>Record tracks to your Last.fm history</div>
+              </div>
+              <input type="checkbox" checked={scrobblingEnabled} onChange={e => setScrobblingEnabled(e.target.checked)} />
+            </label>
+
+            {scrobblingEnabled && (
+              <div style={{ padding: '12px 16px', background: 'var(--bg-overlay)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>Scrobble at</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>{Math.round(scrobbleThreshold * 100)}%</div>
+                </div>
+                <input
+                  type="range"
+                  min={50}
+                  max={100}
+                  step={5}
+                  value={Math.round(scrobbleThreshold * 100)}
+                  onChange={e => setScrobbleThreshold(parseInt(e.target.value) / 100)}
+                  style={{ width: '100%', accentColor: 'var(--accent)' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                  <span>50% (minimum)</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            )}
+
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '12px 16px', background: 'var(--bg-overlay)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Now Playing</div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>Show what you are listening to in real time</div>
+              </div>
+              <input type="checkbox" checked={nowPlayingEnabled} onChange={e => setNowPlayingEnabled(e.target.checked)} />
+            </label>
+
+            <button className="sz-btn sz-btn-ghost sz-btn-sm" onClick={clearSession} style={{ color: 'var(--text-tertiary)' }}>
+              <FiX size={13} /> Disconnect
+            </button>
+          </div>
         )}
       </div>
 
