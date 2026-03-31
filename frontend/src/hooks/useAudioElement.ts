@@ -9,6 +9,11 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 export const useAudioElement = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
+  const webAudioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+  const [webAudioCtx, setWebAudioCtx] = useState<AudioContext | null>(null);
   const [isReady, setIsReady] = useState(false);
   
   const {
@@ -130,6 +135,25 @@ export const useAudioElement = () => {
     });
   }, [currentTrack]);
 
+  const ensureWebAudio = () => {
+    const audio = audioRef.current;
+    if (!audio || webAudioCtxRef.current) return;
+
+    const ctx = new AudioContext();
+    const source = ctx.createMediaElementSource(audio);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.8;
+    source.connect(analyser);
+    analyser.connect(ctx.destination);
+
+    webAudioCtxRef.current = ctx;
+    analyserRef.current = analyser;
+    sourceRef.current = source;
+    setAnalyserNode(analyser);
+    setWebAudioCtx(ctx);
+  };
+
   // Play/pause sync
   useEffect(() => {
     const audio = audioRef.current;
@@ -137,6 +161,10 @@ export const useAudioElement = () => {
 
     if (isPlaying && !isPaused && currentTrack) {
       const tryPlay = () => {
+        ensureWebAudio();
+        if (webAudioCtxRef.current?.state === 'suspended') {
+          webAudioCtxRef.current.resume();
+        }
         const playPromise = audio.play();
         if (playPromise) {
           playPromise
@@ -197,6 +225,8 @@ export const useAudioElement = () => {
   return {
     audioRef,
     isReady,
-    seekTo
+    seekTo,
+    analyserNode,
+    webAudioCtx,
   };
 };

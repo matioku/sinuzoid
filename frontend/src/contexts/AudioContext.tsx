@@ -6,28 +6,30 @@ import { useLastFm } from '../hooks/useLastFm';
 interface AudioContextType {
   isReady: boolean;
   seekTo: (time: number) => void;
+  analyserNode: AnalyserNode | null;
+  webAudioCtx: AudioContext | null;
 }
 
-const AudioContext = createContext<AudioContextType | null>(null);
+const AudioReactContext = createContext<AudioContextType | null>(null);
 
 interface AudioProviderProps {
   children: ReactNode;
 }
 
 export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
-  const { isReady, seekTo } = useAudioElement();
+  const { isReady, seekTo, analyserNode, webAudioCtx } = useAudioElement();
   useMediaSession(seekTo);
   useLastFm();
 
   return (
-    <AudioContext.Provider value={{ isReady, seekTo }}>
+    <AudioReactContext.Provider value={{ isReady, seekTo, analyserNode, webAudioCtx }}>
       {children}
-    </AudioContext.Provider>
+    </AudioReactContext.Provider>
   );
 };
 
 export const useAudioContext = () => {
-  const context = useContext(AudioContext);
+  const context = useContext(AudioReactContext);
   if (!context) {
     throw new Error('useAudioContext must be used within an AudioProvider');
   }

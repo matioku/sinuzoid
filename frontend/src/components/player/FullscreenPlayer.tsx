@@ -4,7 +4,7 @@ import {
   FiChevronDown,
   FiShuffle, FiSkipBack, FiSkipForward, FiRepeat,
   FiVolume2, FiVolumeX,
-  FiMusic, FiInfo, FiList,
+  FiMusic, FiInfo, FiList, FiActivity,
   FiLoader, FiPlay, FiPause,
   FiMaximize2, FiMinimize2,
 } from 'react-icons/fi';
@@ -17,7 +17,11 @@ import { Scrubber } from './Scrubber';
 import { Track } from '../../hooks/useTracks';
 import LogoIcon from '../../assets/logos/logo_sinuzoid-cyan.svg?react';
 
-type FSView = 'now-playing' | 'details' | 'queue';
+import { lazy, Suspense } from 'react';
+
+const VisualizerView = lazy(() => import('./visualizer/VisualizerView'));
+
+type FSView = 'now-playing' | 'details' | 'queue' | 'visualizer';
 
 interface FullscreenPlayerProps {
   open: boolean;
@@ -154,7 +158,7 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({ open, onClos
               color: 'rgba(255,255,255,0.35)',
               fontFamily: 'Space Grotesk, monospace', fontWeight: 600,
             }}>
-              {view === 'now-playing' ? 'Now Playing' : view === 'details' ? 'Track Details' : 'Queue'}
+              {view === 'now-playing' ? 'Now Playing' : view === 'details' ? 'Track Details' : view === 'queue' ? 'Queue' : 'Visualizer'}
             </div>
           </div>
 
@@ -198,6 +202,17 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({ open, onClos
               />
             </div>
           )}
+          {view === 'visualizer' && (
+            <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+              <Suspense fallback={
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(255,255,255,0.35)' }}>
+                  <FiLoader size={24} style={{ animation: 'spin 0.8s linear infinite' }} />
+                </div>
+              }>
+                <VisualizerView />
+              </Suspense>
+            </div>
+          )}
         </div>
 
         {/* Tab bar — transparent so it blends with the gradient background */}
@@ -208,7 +223,7 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({ open, onClos
           padding: '8px 20px 16px',
           display: 'flex', justifyContent: 'center', gap: 6,
         }}>
-          {(['now-playing', 'details', 'queue'] as FSView[]).map(v => (
+          {(['now-playing', 'details', 'queue', 'visualizer'] as FSView[]).map(v => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -226,7 +241,8 @@ export const FullscreenPlayer: React.FC<FullscreenPlayerProps> = ({ open, onClos
               {v === 'now-playing' && <FiMusic size={14} />}
               {v === 'details'     && <FiInfo size={14} />}
               {v === 'queue'       && <FiList size={14} />}
-              {v === 'now-playing' ? 'Now Playing' : v === 'details' ? 'Details' : 'Queue'}
+              {v === 'visualizer'  && <FiActivity size={14} />}
+              {v === 'now-playing' ? 'Now Playing' : v === 'details' ? 'Details' : v === 'queue' ? 'Queue' : 'Visualizer'}
             </button>
           ))}
         </div>
