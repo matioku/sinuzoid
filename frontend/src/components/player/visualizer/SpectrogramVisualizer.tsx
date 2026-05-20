@@ -71,6 +71,8 @@ const SpectrogramVisualizer: React.FC<Props> = ({ analyserNode, settings }) => {
         colData = ctx.createImageData(1, height);
       }
 
+      analyserNode.minDecibels = -s.dbRange;
+      analyserNode.maxDecibels = 0;
       analyserNode.getByteFrequencyData(buf);
 
       // Scroll existing pixels left by 1

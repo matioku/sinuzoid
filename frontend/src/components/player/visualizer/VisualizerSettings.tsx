@@ -110,18 +110,9 @@ function ButterchurnPanel({ settings, onUpdate }: { settings: ButterchurnSetting
       try {
         const text = await file.text();
         let presetData: object;
-        const name = file.name.replace(/\.(milk|json)$/i, '');
+        const name = file.name.replace(/\.json$/i, '');
 
-        if (file.name.toLowerCase().endsWith('.json')) {
-          presetData = JSON.parse(text);
-        } else {
-          // .milk — dynamic import of parser
-          const mod = await import('milkdrop-preset-utils' as any);
-          const convert: ((t: string) => object) | undefined =
-            mod.default?.convertPreset ?? mod.convertPreset ?? mod.default;
-          if (typeof convert !== 'function') throw new Error('milkdrop-preset-utils: no convertPreset function found. Check the package API.');
-          presetData = convert(text);
-        }
+        presetData = JSON.parse(text);
 
         await savePreset(name, presetData);
         addCachedPreset(name, presetData);
@@ -164,14 +155,14 @@ function ButterchurnPanel({ settings, onUpdate }: { settings: ButterchurnSetting
       {/* Import button */}
       <div>
         <SettingLabel>Custom Presets</SettingLabel>
-        <input ref={fileInputRef} type="file" accept=".milk,.json" multiple style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)} />
+        <input ref={fileInputRef} type="file" accept=".json" multiple style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)} />
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={importing}
           style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.18)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: 'var(--accent)', fontSize: 11, fontWeight: 600, fontFamily: 'Manrope, sans-serif' }}
         >
           {importing ? <FiLoader size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <FiUpload size={12} />}
-          {importing ? 'Importing…' : 'Import .milk / .json'}
+          {importing ? 'Importing…' : 'Import .json preset'}
         </button>
         {importError && <div style={{ marginTop: 6, fontSize: 11, color: '#ff5252', fontFamily: 'Manrope, sans-serif' }}>{importError}</div>}
       </div>
