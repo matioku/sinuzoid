@@ -254,12 +254,12 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
           <button
             onClick={onClose}
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
+              background: 'var(--bg-overlay)',
+              border: '1px solid var(--border)',
+              cursor: 'pointer',
               color: 'var(--text-tertiary)', fontSize: 11,
               fontFamily: 'Space Grotesk, monospace',
               padding: '2px 6px',
-              background: 'var(--bg-overlay)',
-              border: '1px solid var(--border)',
               borderRadius: 6, flexShrink: 0,
             }}
           >
@@ -319,7 +319,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) => {
                                 fontFamily: 'Manrope, sans-serif',
                                 transition: 'background 0.1s ease',
                               }}
-                              onMouseEnter={e => { setSelectedIndex(idx); }}
+                              onMouseEnter={() => { setSelectedIndex(idx); }}
                             >
                               {/* Art / Icon */}
                               <ResultArt
