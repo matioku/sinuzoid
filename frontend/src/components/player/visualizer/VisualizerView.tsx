@@ -57,8 +57,9 @@ const VisualizerView: React.FC = () => {
   const [showImmersiveCtrls, setShowImmersiveCtrls] = useState(true);
   const [isBrowserFS, setIsBrowserFS]       = useState(false);
 
-  const containerRef  = useRef<HTMLDivElement>(null);
-  const hideTimerRef  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const containerRef          = useRef<HTMLDivElement>(null);
+  const immersiveContainerRef = useRef<HTMLDivElement>(null);
+  const hideTimerRef          = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const setActiveType = (type: VisualizerType) => {
     updateSettings({ activeType: type });
@@ -92,8 +93,12 @@ const VisualizerView: React.FC = () => {
   }, [immersive, resetHideTimer]);
 
   const handleBrowserFS = () => {
-    if (isBrowserFS) document.exitFullscreen();
-    else containerRef.current?.requestFullscreen();
+    if (isBrowserFS) {
+      document.exitFullscreen();
+    } else {
+      const target = immersive ? immersiveContainerRef.current : containerRef.current;
+      target?.requestFullscreen();
+    }
   };
 
   if (!analyserNode || !webAudioCtx) {
@@ -150,6 +155,7 @@ const VisualizerView: React.FC = () => {
 
     return createPortal(
       <div
+        ref={immersiveContainerRef}
         onMouseMove={resetHideTimer}
         style={{ position: 'fixed', inset: 0, zIndex: 250, background: '#000', cursor: showImmersiveCtrls ? 'default' : 'none' }}
       >
