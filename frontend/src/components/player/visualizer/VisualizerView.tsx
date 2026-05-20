@@ -17,7 +17,7 @@ const VizLoader = () => (
 
 const VisualizerView: React.FC = () => {
   const { analyserNode, webAudioCtx } = useAudioContext();
-  const { settings, updateSettings, updateButterchurn, updateAudiomotion } = useVisualizerSettings();
+  const { settings, updateSettings, updateButterchurn, updateAudiomotion, updateSpectrogram, updateOscilloscope, updateVuMeter } = useVisualizerSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const setActiveType = (type: VisualizerType) => updateSettings({ activeType: type });
@@ -113,8 +113,14 @@ const VisualizerView: React.FC = () => {
             activeType={settings.activeType}
             butterchurnSettings={settings.butterchurn}
             audiomotionSettings={settings.audiomotion}
+            spectrogramSettings={settings.spectrogram}
+            oscilloscopeSettings={settings.oscilloscope}
+            vuMeterSettings={settings.vumeter}
             onUpdateButterchurn={updateButterchurn}
             onUpdateAudiomotion={updateAudiomotion}
+            onUpdateSpectrogram={updateSpectrogram}
+            onUpdateOscilloscope={updateOscilloscope}
+            onUpdateVuMeter={updateVuMeter}
             onClose={() => setSettingsOpen(false)}
           />
         </Suspense>
