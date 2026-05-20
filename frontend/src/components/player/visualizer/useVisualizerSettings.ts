@@ -130,12 +130,12 @@ function loadSettings(): VisualizerSettings {
         vumeter: { ...defaults.vumeter, ...parsed.vumeter },
       };
     }
-  } catch { /* ignore */ }
+  } catch { }
   return defaults;
 }
 
-function saveSettings(s: VisualizerSettings) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+function saveSettings(settings: VisualizerSettings) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch { }
 }
 
 export function useVisualizerSettings() {
@@ -143,7 +143,7 @@ export function useVisualizerSettings() {
 
   useEffect(() => { saveSettings(settings); }, [settings]);
 
-  const updateSettings = useCallback((partial: Partial<VisualizerSettings>) => {
+  const updateSettings = useCallback((partial: Pick<VisualizerSettings, 'activeType'>) => {
     setSettingsState(prev => ({ ...prev, ...partial }));
   }, []);
 
