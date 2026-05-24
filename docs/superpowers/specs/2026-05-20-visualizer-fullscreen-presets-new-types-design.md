@@ -160,7 +160,7 @@ Two vertical bars (L/R). RMS computed from `getFloatTimeDomainData` buffer (sqrt
 
 Drawn as a single filled rect per channel (no per-pixel drawing). Graduation marks pre-computed at init.
 
-**Stereo note:** `AnalyserNode` in the current project is mono (single node connected to the audio graph). Both L/R channels display the same signal unless a `ChannelSplitterNode` is wired. A splitter will be added in `AudioContext` only if the audio source has 2 channels; otherwise both bars mirror each other gracefully.
+**Stereo note:** `AnalyserNode` in the current project is mono. Both L/R bars display the same signal — they mirror each other. A `ChannelSplitterNode` is out of scope; the mirrored display is the expected behaviour for now.
 
 ### MonitoringVisualizer
 

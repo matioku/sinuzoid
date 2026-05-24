@@ -62,3 +62,5 @@ tests/
 *.backup.*
 
 .playwright-mcp/
+
+graphify-out/
